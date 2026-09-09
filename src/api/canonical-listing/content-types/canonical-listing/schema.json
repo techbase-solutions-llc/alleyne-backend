@@ -300,6 +300,23 @@
       "type": "boolean",
       "default": false
     },
+    "exclusive": {
+      "type": "boolean",
+      "default": false
+    },
+    "special": {
+      "type": "boolean",
+      "default": false
+    },
+    "listedAt": {
+      "type": "date"
+    },
+    "newUntil": {
+      "type": "date"
+    },
+    "includedStaff": {
+      "type": "json"
+    },
     "promotedUntil": {
       "type": "datetime"
     },
