@@ -61,11 +61,10 @@ const AUTHENTICATED_PERMISSIONS = [
   'api::agent-invite.agent-invite.findOne',
   'api::agent-invite.agent-invite.create',
   'api::agent-invite.agent-invite.delete',
-  // Leads — public create (enquiry form), authenticated read/update
+  // Leads — create only. Reading and updating leads (visitor names, emails, phones,
+  // messages) is done by the site's server token for agency members; a signed-in
+  // user's own JWT must not reach them (TEC-1239 review: open sign-up exposed them).
   'api::lead.lead.create',
-  'api::lead.lead.find',
-  'api::lead.lead.findOne',
-  'api::lead.lead.update',
   // Favourites — authenticated users only
   'api::favorite.favorite.find',
   'api::favorite.favorite.findOne',
@@ -89,11 +88,9 @@ const AUTHENTICATED_PERMISSIONS = [
   'api::listing-availability.listing-availability.create',
   'api::listing-availability.listing-availability.update',
   'api::listing-availability.listing-availability.delete',
-  // Reservations — guests create, hosts read/update
-  'api::reservation.reservation.find',
-  'api::reservation.reservation.findOne',
+  // Reservations — create only; reads/updates go through the site's server token
+  // (same reason as leads above).
   'api::reservation.reservation.create',
-  'api::reservation.reservation.update',
   // Users-permissions
   'plugin::users-permissions.auth.connect',
   'plugin::users-permissions.user.me',
@@ -243,6 +240,18 @@ module.exports = {
           })
         )
       );
+    }
+
+    // Revoke grants that earlier deploys created and that must no longer exist: the
+    // loop above only ever adds, so removing a line from the list is not enough.
+    const REVOKED = [
+      'api::lead.lead.find', 'api::lead.lead.findOne', 'api::lead.lead.update',
+      'api::reservation.reservation.find', 'api::reservation.reservation.findOne', 'api::reservation.reservation.update',
+    ];
+    const toRevoke = (authenticatedRole.permissions ?? []).filter((p) => REVOKED.includes(p.action));
+    if (toRevoke.length > 0) {
+      strapi.log.info(`[bootstrap] Revoking ${toRevoke.length} permission(s) from Authenticated role`);
+      await Promise.all(toRevoke.map((p) => strapi.query('plugin::users-permissions.permission').delete({ where: { id: p.id } })));
     }
 
     // ── Public role permissions (read-only editorial content) ─────────────────
