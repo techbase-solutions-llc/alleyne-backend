@@ -65,14 +65,14 @@ const AUTHENTICATED_PERMISSIONS = [
   // messages) is done by the site's server token for agency members; a signed-in
   // user's own JWT must not reach them (TEC-1239 review: open sign-up exposed them).
   'api::lead.lead.create',
-  // Favourites — authenticated users only
+  // Favourites — authenticated users only. find is scoped to the user by the controller;
+  // findOne is not granted: it was not scoped, so any signed-in user could read anyone's
+  // row by id (TEC-1273 review). The site never reads a single row.
   'api::favorite.favorite.find',
-  'api::favorite.favorite.findOne',
   'api::favorite.favorite.create',
   'api::favorite.favorite.delete',
-  // Saved searches — authenticated users only
+  // Saved searches — authenticated users only (findOne withheld, as above)
   'api::saved-search.saved-search.find',
-  'api::saved-search.saved-search.findOne',
   'api::saved-search.saved-search.create',
   'api::saved-search.saved-search.update',
   'api::saved-search.saved-search.delete',
@@ -247,6 +247,7 @@ module.exports = {
     const REVOKED = [
       'api::lead.lead.find', 'api::lead.lead.findOne', 'api::lead.lead.update',
       'api::reservation.reservation.find', 'api::reservation.reservation.findOne', 'api::reservation.reservation.update',
+      'api::favorite.favorite.findOne', 'api::saved-search.saved-search.findOne',
     ];
     const toRevoke = (authenticatedRole.permissions ?? []).filter((p) => REVOKED.includes(p.action));
     if (toRevoke.length > 0) {
