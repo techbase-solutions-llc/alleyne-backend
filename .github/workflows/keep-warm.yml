@@ -1,12 +1,10 @@
 name: keep-backend-warm
 
-# Render's free tier spins the service down after ~15 minutes idle, and a cold
-# start takes ~40s. This pings the health endpoint every 10 minutes so the demo
-# stays responsive. Remove this once the service moves to a paid (always-on) plan.
+# Superseded 25 Sep 2026: GitHub ran this "every 10 minutes" schedule only every few
+# hours, so the backend still slept. The site's Vercel Cron (/api/keep-warm in
+# alleyne-real-estate) now keeps it awake. Kept as a manual fallback only.
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
