@@ -1,0 +1,31 @@
+# Deploy to Render on every push to master.
+# The Render GitHub app is not installed on the techbase-solutions-llc organisation, so
+# Render gets no push webhook; this calls Render's deploy API instead (TEC-1255, 25 Sep 2026).
+# Secret RENDER_API_KEY is set on the repository.
+name: Deploy to Render
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: srv-da1bfbgu01pc739tivfg
+        run: |
+          status=$(curl -s -o response.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
+            -d "{\"clearCache\":\"do_not_clear\",\"commitId\":\"$GITHUB_SHA\"}" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys")
+          echo "Render responded $status"
+          test "$status" = "201" || test "$status" = "200" || { cat response.json; exit 1; }
