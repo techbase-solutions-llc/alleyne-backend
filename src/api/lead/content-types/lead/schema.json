@@ -33,7 +33,12 @@
         "whatsapp_click",
         "phone_click",
         "email_reveal",
-        "source_referral"
+        "source_referral",
+        "general_enquiry",
+        "booking_request",
+        "management_enquiry",
+        "concierge",
+        "newsletter"
       ],
       "default": "listing_enquiry"
     },
@@ -75,6 +80,21 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user"
+    },
+    "checkIn": {
+      "type": "date"
+    },
+    "checkOut": {
+      "type": "date"
+    },
+    "guests": {
+      "type": "integer"
+    },
+    "sourcePath": {
+      "type": "string"
+    },
+    "activecampaignContactId": {
+      "type": "string"
     }
   }
 }

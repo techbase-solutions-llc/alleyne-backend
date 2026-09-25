@@ -6,7 +6,9 @@
     "pluralName": "reservations",
     "displayName": "Reservation"
   },
-  "options": { "draftAndPublish": false },
+  "options": {
+    "draftAndPublish": false
+  },
   "attributes": {
     "listing": {
       "type": "relation",
@@ -18,23 +20,63 @@
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user"
     },
-    "checkIn": { "type": "date", "required": true },
-    "checkOut": { "type": "date", "required": true },
-    "nights": { "type": "integer" },
-    "guestCount": { "type": "integer" },
+    "checkIn": {
+      "type": "date",
+      "required": true
+    },
+    "checkOut": {
+      "type": "date",
+      "required": true
+    },
+    "nights": {
+      "type": "integer"
+    },
+    "guestCount": {
+      "type": "integer"
+    },
     "status": {
       "type": "enumeration",
-      "enum": ["pending", "confirmed", "cancelled", "completed"],
+      "enum": [
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed"
+      ],
       "default": "pending",
       "required": true
     },
-    "totalMinor": { "type": "integer" },
+    "totalMinor": {
+      "type": "integer"
+    },
     "currency": {
       "type": "enumeration",
-      "enum": ["BBD", "USD", "EUR", "GBP"],
+      "enum": [
+        "BBD",
+        "USD",
+        "EUR",
+        "GBP"
+      ],
       "default": "BBD"
     },
-    "guestNotes": { "type": "text" },
-    "hostNotes": { "type": "text" }
+    "guestNotes": {
+      "type": "text"
+    },
+    "hostNotes": {
+      "type": "text"
+    },
+    "guestName": {
+      "type": "string"
+    },
+    "guestEmail": {
+      "type": "email"
+    },
+    "guestPhone": {
+      "type": "string"
+    },
+    "lead": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::lead.lead"
+    }
   }
 }
