@@ -25,7 +25,9 @@ const AUTHENTICATED_PERMISSIONS = [
   // Leads — create only. Reading and updating leads (visitor names, emails, phones,
   // messages) is done by the site's server token for agency members; a signed-in
   // user's own JWT must not reach them (TEC-1239 review: open sign-up exposed them).
-  'api::lead.lead.create',
+  // (lead.create and reservation.create withdrawn: the site creates both with its server
+  // token after its spam checks; a direct create let any account plant leads or
+  // confirmed bookings in the back office. TEC-1343 second review.)
   // Favourites — authenticated users only. find is scoped to the user by the controller;
   // findOne is not granted: it was not scoped, so any signed-in user could read anyone's
   // row by id (TEC-1273 review). The site never reads a single row.
@@ -39,11 +41,9 @@ const AUTHENTICATED_PERMISSIONS = [
   'api::saved-search.saved-search.delete',
   // Reservations — create only; reads/updates go through the site's server token
   // (same reason as leads above).
-  'api::reservation.reservation.create',
   // Users-permissions
   'plugin::users-permissions.auth.connect',
   'plugin::users-permissions.user.me',
-  'plugin::users-permissions.user.updateMe',
 ];
 
 /**
@@ -197,6 +197,7 @@ module.exports = {
       'api::lead.lead.find', 'api::lead.lead.findOne', 'api::lead.lead.update',
       'api::reservation.reservation.find', 'api::reservation.reservation.findOne', 'api::reservation.reservation.update',
       'api::favorite.favorite.findOne', 'api::saved-search.saved-search.findOne',
+      'api::lead.lead.create', 'api::reservation.reservation.create', 'plugin::users-permissions.user.updateMe',
       // Agent operations: server token only (TEC-1343 review).
       'api::source-connection.source-connection.find',
       'api::source-connection.source-connection.findOne',

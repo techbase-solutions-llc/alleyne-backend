@@ -34,7 +34,11 @@ module.exports = ({ env }) => ({
       },
     },
   },
+  // GraphQL off (TEC-1343 second review): the site never uses it, and its shadow-CRUD
+  // resolvers skip the custom REST controllers, so a signed-in client could read, edit and
+  // delete every user's saved searches and favourites through it (verified on production).
   graphql: {
+    enabled: false,
     config: {
       endpoint: "/graphql",
       shadowCRUD: true,
