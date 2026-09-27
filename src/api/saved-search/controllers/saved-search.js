@@ -2,6 +2,10 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
+// The site's server (full-access API token) runs the daily alert emails (TEC-1343): it may
+// list alert-enabled searches with their owner's email, and stamp lastAlertedAt. Nothing else.
+const isApiToken = (ctx) => ctx.state.auth?.strategy?.name === 'api-token';
+
 module.exports = createCoreController('api::saved-search.saved-search', ({ strapi }) => ({
   /**
    * Find saved searches — scoped to the authenticated user via entityService
@@ -9,6 +13,24 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
    * the users-permissions relation when called with a user JWT.
    */
   async find(ctx) {
+    if (!ctx.state.user && isApiToken(ctx)) {
+      const pageSize = Math.min(Number(ctx.query.pagination?.pageSize ?? 100), 100);
+      const page = Number(ctx.query.pagination?.page ?? 1);
+      const where = { alertEnabled: true };
+      const [entities, total] = await Promise.all([
+        strapi.entityService.findMany('api::saved-search.saved-search', {
+          filters: where,
+          fields: ['name', 'filtersJson', 'alertEnabled', 'lastAlertedAt'],
+          populate: { user: { fields: ['email', 'username', 'blocked'] } },
+          sort: { id: 'asc' },
+          start: (page - 1) * pageSize,
+          limit: pageSize,
+        }),
+        strapi.entityService.count('api::saved-search.saved-search', { filters: where }),
+      ]);
+      return this.transformResponse(entities, { pagination: { page, pageSize, pageCount: Math.ceil(total / pageSize), total } });
+    }
+
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
@@ -62,9 +84,8 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
   },
 
   /**
-   * Delete a saved search — only the owning user may delete.
-   * Orphaned records (user === null) may be deleted by any authenticated user
-   * so they can be cleaned up from the dashboard.
+   * Delete a saved search — only the owning user may delete. Rows without an owner are
+   * left to the admin (they were deletable by any signed-in user; TEC-1343 review).
    */
   async delete(ctx) {
     const user = ctx.state.user;
@@ -76,7 +97,7 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
     });
 
     if (!saved) return ctx.notFound();
-    if (saved.user?.id && saved.user.id !== user.id) {
+    if (saved.user?.id !== user.id) {
       return ctx.forbidden('You can only delete your own saved searches.');
     }
 
@@ -84,10 +105,19 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
   },
 
   /**
-   * Update a saved search — only the owning user may update.
-   * Orphaned records (user === null) may be updated by any authenticated user.
+   * Update a saved search — only the owning user may update. The server's API token may
+   * only record when an alert was last sent.
    */
   async update(ctx) {
+    if (!ctx.state.user && isApiToken(ctx)) {
+      const at = ctx.request.body?.data?.lastAlertedAt;
+      if (!at || Number.isNaN(Date.parse(at))) return ctx.badRequest('lastAlertedAt is required');
+      const found = await strapi.entityService.findOne('api::saved-search.saved-search', ctx.params.id);
+      if (!found) return ctx.notFound();
+      const entity = await strapi.entityService.update('api::saved-search.saved-search', found.id, { data: { lastAlertedAt: at } });
+      return this.transformResponse({ id: entity.id, lastAlertedAt: entity.lastAlertedAt });
+    }
+
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
@@ -97,7 +127,7 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
     });
 
     if (!saved) return ctx.notFound();
-    if (saved.user?.id && saved.user.id !== user.id) {
+    if (saved.user?.id !== user.id) {
       return ctx.forbidden('You can only update your own saved searches.');
     }
 

@@ -311,6 +311,9 @@
     "listedAt": {
       "type": "date"
     },
+    "firstPublicAt": {
+      "type": "datetime"
+    },
     "newUntil": {
       "type": "date"
     },
