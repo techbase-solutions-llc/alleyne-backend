@@ -4,7 +4,14 @@ const { createCoreController } = require('@strapi/strapi').factories;
 
 // The site's server (full-access API token) runs the daily alert emails (TEC-1343): it may
 // list alert-enabled searches with their owner's email, and stamp lastAlertedAt. Nothing else.
-const isApiToken = (ctx) => ctx.state.auth?.strategy?.name === 'api-token';
+// Full-access tokens only: a read-only or custom token must not reach owners' emails (review).
+const isApiToken = (ctx) =>
+  ctx.state.auth?.strategy?.name === 'api-token' && ctx.state.auth?.credentials?.type === 'full-access';
+
+// Abuse limits (TEC-1343 review): sign-up needs no email check, so an account made with
+// someone else's address could otherwise flood them with alerts.
+const MAX_SEARCHES = 20;
+const { clean } = require('../../../utils/saved-search-input');
 
 module.exports = createCoreController('api::saved-search.saved-search', ({ strapi }) => ({
   /**
@@ -34,14 +41,15 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
-    const { populate, sort, pagination } = ctx.query;
+    const { sort, pagination } = ctx.query;
     const pageSize = Number(pagination?.pageSize ?? 100);
     const page = Number(pagination?.page ?? 1);
 
     const [entities, total] = await Promise.all([
       strapi.entityService.findMany('api::saved-search.saved-search', {
         filters: { user: { id: user.id } },
-        populate: populate ?? {},
+        // No caller-chosen populate: a user's own rows need no relations.
+        populate: {},
         sort: sort ?? { createdAt: 'desc' },
         pagination: { page, pageSize },
       }),
@@ -65,16 +73,15 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
-    const body = ctx.request.body?.data ?? {};
+    const data = clean(ctx.request.body?.data ?? {});
+    if (!data.name || !data.filtersJson) return ctx.badRequest('name and filtersJson.query are required');
+    const count = await strapi.entityService.count('api::saved-search.saved-search', { filters: { user: { id: user.id } } });
+    if (count >= MAX_SEARCHES) return ctx.badRequest(`You can keep up to ${MAX_SEARCHES} saved searches.`);
 
     try {
       const entity = await strapi.entityService.create('api::saved-search.saved-search', {
-        data: {
-          name: body.name,
-          filtersJson: body.filtersJson,
-          alertEnabled: body.alertEnabled ?? false,
-          user: user.id,
-        },
+        // lastAlertedAt is never taken from a user: the alert run sets it.
+        data: { ...data, alertEnabled: data.alertEnabled ?? false, user: user.id },
       });
       const sanitizedEntity = await this.sanitizeOutput(entity, ctx);
       return this.transformResponse(sanitizedEntity);
@@ -131,6 +138,13 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
       return ctx.forbidden('You can only update your own saved searches.');
     }
 
-    return super.update(ctx);
+    // Only name, filters and the alert switch. Turning alerts back on starts afresh, so the
+    // next run sets a new starting point instead of emailing everything since the last
+    // alert (review); a user can never set lastAlertedAt themselves.
+    const data = clean(ctx.request.body?.data ?? {});
+    if (data.alertEnabled === true && !saved.alertEnabled) data.lastAlertedAt = null;
+    const entity = await strapi.entityService.update('api::saved-search.saved-search', saved.id, { data });
+    const sanitizedEntity = await this.sanitizeOutput(entity, ctx);
+    return this.transformResponse(sanitizedEntity);
   },
 }));

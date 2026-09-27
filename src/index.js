@@ -17,50 +17,11 @@ const PUBLIC_PERMISSIONS = [
 ];
 
 const AUTHENTICATED_PERMISSIONS = [
-  // Source connections — full CRUD for owner + custom actions
-  'api::source-connection.source-connection.find',
-  'api::source-connection.source-connection.findOne',
-  'api::source-connection.source-connection.create',
-  'api::source-connection.source-connection.update',
-  'api::source-connection.source-connection.delete',
-  'api::source-connection.source-connection.verify',
-  'api::source-connection.source-connection.triggerSync',
-  // Source listings — read only (created by sync worker)
-  'api::source-listing.source-listing.find',
-  'api::source-listing.source-listing.findOne',
-  // Sync runs — read only
-  'api::sync-run.sync-run.find',
-  'api::sync-run.sync-run.findOne',
-  // Sync run items — read only
-  'api::sync-run-item.sync-run-item.find',
-  'api::sync-run-item.sync-run-item.findOne',
-  // Policy block events — read only
-  'api::policy-block-event.policy-block-event.find',
-  'api::policy-block-event.policy-block-event.findOne',
-  // Canonical listings — full CRUD (ownership enforced in controller/actions)
-  'api::canonical-listing.canonical-listing.find',
-  'api::canonical-listing.canonical-listing.findOne',
-  'api::canonical-listing.canonical-listing.create',
-  'api::canonical-listing.canonical-listing.update',
-  'api::canonical-listing.canonical-listing.delete',
-  // Agency
-  'api::agency.agency.find',
-  'api::agency.agency.findOne',
-  'api::agency.agency.create',
-  'api::agency.agency.update',
-  // Agency membership
-  'api::agency-membership.agency-membership.find',
-  'api::agency-membership.agency-membership.findOne',
-  'api::agency-membership.agency-membership.create',
-  'api::agency-membership.agency-membership.update',
-  'api::agency-membership.agency-membership.delete',
-  'api::agency-membership.agency-membership.accept',
-  'api::agency-membership.agency-membership.decline',
-  // Agent invite
-  'api::agent-invite.agent-invite.find',
-  'api::agent-invite.agent-invite.findOne',
-  'api::agent-invite.agent-invite.create',
-  'api::agent-invite.agent-invite.delete',
+  // Signed-in users are the agency's clients (TEC-1343 review). Everything agents do
+  // (listings, rooms, availability, sources and imports, the agency, its members and
+  // invites) goes through the site's server token after the site checks agency
+  // membership. The multi-agency grants inherited from Realtlist let any sign-up edit or
+  // delete agency memberships and change the agency; they are revoked below.
   // Leads — create only. Reading and updating leads (visitor names, emails, phones,
   // messages) is done by the site's server token for agency members; a signed-in
   // user's own JWT must not reach them (TEC-1239 review: open sign-up exposed them).
@@ -76,18 +37,6 @@ const AUTHENTICATED_PERMISSIONS = [
   'api::saved-search.saved-search.create',
   'api::saved-search.saved-search.update',
   'api::saved-search.saved-search.delete',
-  // Listing spaces — agents can manage room-by-room media
-  'api::listing-space.listing-space.find',
-  'api::listing-space.listing-space.findOne',
-  'api::listing-space.listing-space.create',
-  'api::listing-space.listing-space.update',
-  'api::listing-space.listing-space.delete',
-  // Listing availability — hosts manage their calendar
-  'api::listing-availability.listing-availability.find',
-  'api::listing-availability.listing-availability.findOne',
-  'api::listing-availability.listing-availability.create',
-  'api::listing-availability.listing-availability.update',
-  'api::listing-availability.listing-availability.delete',
   // Reservations — create only; reads/updates go through the site's server token
   // (same reason as leads above).
   'api::reservation.reservation.create',
@@ -248,6 +197,52 @@ module.exports = {
       'api::lead.lead.find', 'api::lead.lead.findOne', 'api::lead.lead.update',
       'api::reservation.reservation.find', 'api::reservation.reservation.findOne', 'api::reservation.reservation.update',
       'api::favorite.favorite.findOne', 'api::saved-search.saved-search.findOne',
+      // Agent operations: server token only (TEC-1343 review).
+      'api::source-connection.source-connection.find',
+      'api::source-connection.source-connection.findOne',
+      'api::source-connection.source-connection.create',
+      'api::source-connection.source-connection.update',
+      'api::source-connection.source-connection.delete',
+      'api::source-connection.source-connection.verify',
+      'api::source-connection.source-connection.triggerSync',
+      'api::source-listing.source-listing.find',
+      'api::source-listing.source-listing.findOne',
+      'api::sync-run.sync-run.find',
+      'api::sync-run.sync-run.findOne',
+      'api::sync-run-item.sync-run-item.find',
+      'api::sync-run-item.sync-run-item.findOne',
+      'api::policy-block-event.policy-block-event.find',
+      'api::policy-block-event.policy-block-event.findOne',
+      'api::canonical-listing.canonical-listing.find',
+      'api::canonical-listing.canonical-listing.findOne',
+      'api::canonical-listing.canonical-listing.create',
+      'api::canonical-listing.canonical-listing.update',
+      'api::canonical-listing.canonical-listing.delete',
+      'api::agency.agency.find',
+      'api::agency.agency.findOne',
+      'api::agency.agency.create',
+      'api::agency.agency.update',
+      'api::agency-membership.agency-membership.find',
+      'api::agency-membership.agency-membership.findOne',
+      'api::agency-membership.agency-membership.create',
+      'api::agency-membership.agency-membership.update',
+      'api::agency-membership.agency-membership.delete',
+      'api::agency-membership.agency-membership.accept',
+      'api::agency-membership.agency-membership.decline',
+      'api::agent-invite.agent-invite.find',
+      'api::agent-invite.agent-invite.findOne',
+      'api::agent-invite.agent-invite.create',
+      'api::agent-invite.agent-invite.delete',
+      'api::listing-space.listing-space.find',
+      'api::listing-space.listing-space.findOne',
+      'api::listing-space.listing-space.create',
+      'api::listing-space.listing-space.update',
+      'api::listing-space.listing-space.delete',
+      'api::listing-availability.listing-availability.find',
+      'api::listing-availability.listing-availability.findOne',
+      'api::listing-availability.listing-availability.create',
+      'api::listing-availability.listing-availability.update',
+      'api::listing-availability.listing-availability.delete',
     ];
     const toRevoke = (authenticatedRole.permissions ?? []).filter((p) => REVOKED.includes(p.action));
     if (toRevoke.length > 0) {
