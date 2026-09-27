@@ -2,6 +2,18 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
+// Signed-in users no longer read listings through the API (TEC-1343 review), so the
+// sanitizer would strip the listing from their own favourites. The listing is attached
+// here with a fixed set of card fields, and only while the public can see it.
+const LISTING_FIELDS = ['slug', 'title', 'transactionType', 'parish', 'bedrooms', 'bathrooms', 'priceMinor', 'nightlyRateMinor'];
+const HIDDEN = new Set(['draft', 'suppressed']);
+const cardOf = (l) => {
+  if (!l || l.publishedAt == null || HIDDEN.has(l.status)) return null;
+  const out = { id: l.id };
+  for (const k of LISTING_FIELDS) out[k] = l[k] ?? null;
+  return out;
+};
+
 module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => ({
   /**
    * Find favourites — scoped to the authenticated user via entityService
@@ -12,14 +24,15 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
-    const { populate, sort, pagination } = ctx.query;
-    const pageSize = Number(pagination?.pageSize ?? 50);
+    const { sort, pagination } = ctx.query;
+    const pageSize = Math.min(Number(pagination?.pageSize ?? 50), 100);
     const page = Number(pagination?.page ?? 1);
 
     const [entities, total] = await Promise.all([
       strapi.entityService.findMany('api::favorite.favorite', {
         filters: { user: { id: user.id } },
-        populate: populate ?? {},
+        // Fixed, not caller-chosen.
+        populate: { listing: { fields: [...LISTING_FIELDS, 'status', 'publishedAt'] } },
         sort: sort ?? { createdAt: 'desc' },
         pagination: { page, pageSize },
       }),
@@ -28,7 +41,9 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
       }),
     ]);
 
-    const sanitized = await this.sanitizeOutput(entities, ctx);
+    const cards = new Map(entities.map((e) => [e.id, cardOf(e.listing)]));
+    const sanitized = await this.sanitizeOutput(entities.map(({ listing, ...rest }) => rest), ctx);
+    for (const row of sanitized) row.listing = cards.get(row.id) ?? null;
     return this.transformResponse(sanitized, {
       pagination: { page, pageSize, pageCount: Math.ceil(total / pageSize), total },
     });
