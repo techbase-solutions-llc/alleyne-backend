@@ -24,16 +24,18 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
     const user = ctx.state.user;
     if (!user) return ctx.unauthorized();
 
-    const { sort, pagination } = ctx.query;
-    const pageSize = Math.min(Number(pagination?.pageSize ?? 50), 100);
-    const page = Number(pagination?.page ?? 1);
+    // Fixed order and bounded paging: a caller-chosen sort on the listing relation would
+    // reveal the order of hidden listings (second review).
+    const { pagination } = ctx.query;
+    const pageSize = Math.min(Math.max(parseInt(pagination?.pageSize, 10) || 50, 1), 100);
+    const page = Math.max(parseInt(pagination?.page, 10) || 1, 1);
 
     const [entities, total] = await Promise.all([
       strapi.entityService.findMany('api::favorite.favorite', {
         filters: { user: { id: user.id } },
         // Fixed, not caller-chosen.
         populate: { listing: { fields: [...LISTING_FIELDS, 'status', 'publishedAt'] } },
-        sort: sort ?? { createdAt: 'desc' },
+        sort: { createdAt: 'desc' },
         pagination: { page, pageSize },
       }),
       strapi.entityService.count('api::favorite.favorite', {
@@ -59,7 +61,11 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
     const { listing } = ctx.request.body?.data ?? {};
     if (!listing) return ctx.badRequest('listing is required');
 
-    const listingId = typeof listing === 'object' ? listing.id ?? listing : listing;
+    const listingId = Number(typeof listing === 'object' ? listing.id ?? listing : listing);
+    if (!Number.isInteger(listingId)) return ctx.badRequest('listing is required');
+    // Only a listing the public can see may be saved (second review).
+    const target = await strapi.entityService.findOne('api::canonical-listing.canonical-listing', listingId, { fields: ['status', 'publishedAt'] });
+    if (!cardOf(target && { ...target, id: listingId })) return ctx.badRequest('This property cannot be saved.');
 
     // Check for existing favourite
     const existing = await strapi.entityService.findMany('api::favorite.favorite', {

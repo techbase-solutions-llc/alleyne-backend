@@ -12,7 +12,7 @@
  * slug to FRONTEND_URL (defaulting to realtlist.com) when INTERNAL_DISPATCH_SECRET was set.
  * That variable was never set here, so nothing was sent; the site now pulls instead.
  */
-const { publicPatch } = require('../../../../utils/first-public');
+const { publicPatch, AVAILABLE, barbadosDate } = require('../../../../utils/first-public');
 
 const UID = 'api::canonical-listing.canonical-listing';
 
@@ -33,5 +33,21 @@ module.exports = {
     if (!prev) return;
     Object.assign(data, publicPatch({ prev, next: data, now: new Date().toISOString() }));
     event.params.data = data;
+  },
+
+  // The admin panel's bulk publish uses updateMany, which skips beforeUpdate (second
+  // review). Afterwards, stamp any row it made public that has no stamp yet. With the
+  // bootstrap backfill, every public row already has one, so this only catches new ones.
+  async afterUpdateMany(event) {
+    const data = event.params.data || {};
+    if (data.status === undefined && data.publishedAt === undefined) return;
+    const now = new Date().toISOString();
+    const rows = await strapi.db.query(UID).findMany({
+      where: { $and: [event.params.where || {}, { firstPublicAt: null, publishedAt: { $notNull: true }, status: { $in: [...AVAILABLE] } }] },
+      select: ['id', 'listedAt'],
+    });
+    for (const r of rows) {
+      await strapi.db.query(UID).update({ where: { id: r.id }, data: r.listedAt ? { firstPublicAt: now } : { firstPublicAt: now, listedAt: barbadosDate(now) } });
+    }
   },
 };

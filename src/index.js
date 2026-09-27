@@ -293,5 +293,24 @@ module.exports = {
         });
       }
     }
+
+    // ── firstPublicAt backfill (TEC-1343 second review) ───────────────────────
+    // Listings that were already out (published, not a draft) before firstPublicAt existed
+    // get their listing date (or creation) as their first-public moment. Without it, a
+    // legacy listing that is paused and brought back, or sold and relisted, would be
+    // stamped as brand new and sent to every matching alert. Idempotent: only fills blanks.
+    try {
+      const meta = strapi.db.metadata.get('api::canonical-listing.canonical-listing');
+      const col = (a) => meta.attributes[a].columnName;
+      const knex = strapi.db.connection;
+      const filled = await knex(meta.tableName)
+        .whereNull(col('firstPublicAt'))
+        .whereNotNull(col('publishedAt'))
+        .whereNot(col('status'), 'draft')
+        .update({ [col('firstPublicAt')]: knex.raw(`COALESCE(CAST(?? AS timestamp), ??)`, [col('listedAt'), col('createdAt')]) });
+      if (filled) strapi.log.info(`[bootstrap] firstPublicAt backfilled on ${filled} listing(s)`);
+    } catch (err) {
+      strapi.log.warn(`[bootstrap] firstPublicAt backfill skipped: ${err.message}`);
+    }
   },
 };

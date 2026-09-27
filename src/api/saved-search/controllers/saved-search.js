@@ -42,8 +42,8 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
     if (!user) return ctx.unauthorized();
 
     const { sort, pagination } = ctx.query;
-    const pageSize = Number(pagination?.pageSize ?? 100);
-    const page = Number(pagination?.page ?? 1);
+    const pageSize = Math.min(Math.max(parseInt(pagination?.pageSize, 10) || 100, 1), 100);
+    const page = Math.max(parseInt(pagination?.page, 10) || 1, 1);
 
     const [entities, total] = await Promise.all([
       strapi.entityService.findMany('api::saved-search.saved-search', {
