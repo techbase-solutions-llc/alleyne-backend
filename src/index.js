@@ -310,17 +310,30 @@ module.exports = {
         value: {
           ...advanced,
           unique_email: true,
-          allow_register: true,
+          // allow_register is left as set in the admin panel (review: forcing it on every boot
+          // meant registration could not be switched off in an emergency).
           email_reset_password: `${site}/reset-password`,
           email_confirmation: process.env.EMAIL_CONFIRMATION === 'true',
           email_confirmation_redirection: `${site}/signin?confirmed=1`,
         },
       });
       const templates = (await upStore.get({ key: 'email' })) || {};
-      const tpl = (key, object, message) => ({
-        ...(templates[key] || {}),
-        options: { ...((templates[key] || {}).options || {}), from: fromObj, response_email: process.env.EMAIL_REPLY_TO || 'info@jalbarbados.com', object, message },
-      });
+      // Sender and reply-to follow the environment on every boot (they change at cutover);
+      // the wording is written once, so later edits in the admin panel survive restarts
+      // (review). An unset EMAIL_FROM leaves the sender as it is.
+      const firstTime = !(await upStore.get({ key: 'alleyne-email-templates-v1' }));
+      const tpl = (key, object, message) => {
+        const current = (templates[key] || {}).options || {};
+        return {
+          ...(templates[key] || {}),
+          options: {
+            ...current,
+            ...(fromObj.email ? { from: fromObj } : {}),
+            response_email: process.env.EMAIL_REPLY_TO || current.response_email || 'info@jalbarbados.com',
+            ...(firstTime ? { object, message } : {}),
+          },
+        };
+      };
       await upStore.set({
         key: 'email',
         value: {
@@ -341,6 +354,7 @@ module.exports = {
           ),
         },
       });
+      if (firstTime) await upStore.set({ key: 'alleyne-email-templates-v1', value: { at: new Date().toISOString() } });
     } catch (err) {
       strapi.log.warn(`[bootstrap] account email settings skipped: ${err.message}`);
     }
