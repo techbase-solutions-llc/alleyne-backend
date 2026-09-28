@@ -10,6 +10,7 @@
 // no collisions and no stale cached copies.
 
 const { put, del } = require("@vercel/blob");
+const { errors: { ApplicationError } } = require("@strapi/utils");
 
 const PREFIX = "strapi";
 
@@ -25,7 +26,8 @@ module.exports = {
     // message instead of stopping Strapi from starting.
     const requireToken = () => {
       if (!token) {
-        throw new Error("Vercel Blob upload provider: BLOB_READ_WRITE_TOKEN is not set.");
+        // ApplicationError: the admin shows this message instead of a bare 500.
+        throw new ApplicationError("Photo uploads are not set up on this server (BLOB_READ_WRITE_TOKEN is missing).");
       }
       return token;
     };
@@ -43,8 +45,13 @@ module.exports = {
     };
 
     return {
-      uploadStream(file) {
-        return send(file, file.stream);
+      // Read the stream into memory first: Blob retries a failed upload by sending the same
+      // body again, and a stream can only be read once (review, 28 Sep). Photos are at most
+      // 20 MB (strapi::body limit), so this is cheap.
+      async uploadStream(file) {
+        const chunks = [];
+        for await (const chunk of file.stream) chunks.push(chunk);
+        return send(file, Buffer.concat(chunks));
       },
       upload(file) {
         return send(file, file.buffer);

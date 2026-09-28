@@ -34,7 +34,9 @@ module.exports = [
   "strapi::cors",
   "strapi::poweredBy",
   "strapi::query",
-  "strapi::body",
+  // 20 MB per file, checked while the upload is read, for both new files and "replace"
+  // (the upload plugin's own sizeLimit only runs after sharp has processed the file).
+  { name: "strapi::body", config: { formidable: { maxFileSize: 20 * 1024 * 1024 } } },
   "strapi::session",
   "strapi::favicon",
   "strapi::public",
