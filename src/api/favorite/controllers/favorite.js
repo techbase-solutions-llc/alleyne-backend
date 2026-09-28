@@ -11,6 +11,9 @@ const cardOf = (l) => {
   if (!l || l.publishedAt == null || HIDDEN.has(l.status)) return null;
   const out = { id: l.id };
   for (const k of LISTING_FIELDS) out[k] = l[k] ?? null;
+  // The listing's own first photo (TEC-1344: saved cards showed stock photos).
+  const ext = Array.isArray(l.externalImages) ? l.externalImages.find((u) => typeof u === 'string' && u.startsWith('http')) : null;
+  out.image = ext || l.primaryMedia?.url || null;
   return out;
 };
 
@@ -34,7 +37,7 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
       strapi.entityService.findMany('api::favorite.favorite', {
         filters: { user: { id: user.id } },
         // Fixed, not caller-chosen.
-        populate: { listing: { fields: [...LISTING_FIELDS, 'status', 'publishedAt'] } },
+        populate: { listing: { fields: [...LISTING_FIELDS, 'status', 'publishedAt', 'externalImages'], populate: { primaryMedia: { fields: ['url'] } } } },
         sort: { createdAt: 'desc' },
         pagination: { page, pageSize },
       }),
