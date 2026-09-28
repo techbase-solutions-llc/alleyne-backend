@@ -294,6 +294,29 @@ module.exports = {
       }
     }
 
+    // ── Admin-panel account from settings (TEC-1344) ──────────────────────────
+    // Strapi has no API for admin-panel users. When ADMIN_BOOTSTRAP_EMAIL and
+    // ADMIN_BOOTSTRAP_PASSWORD are set, a super admin with that email is created (or, with
+    // ADMIN_BOOTSTRAP_RESET=true, its password reset). Remove the settings after one deploy;
+    // the account stays. Nothing happens without them.
+    try {
+      const email = (process.env.ADMIN_BOOTSTRAP_EMAIL || '').trim().toLowerCase();
+      const password = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
+      if (email && password) {
+        const existing = await strapi.query('admin::user').findOne({ where: { email } });
+        if (!existing) {
+          const superAdmin = await strapi.service('admin::role').getSuperAdmin();
+          await strapi.service('admin::user').create({ email, firstname: 'Techbase', lastname: 'Admin', password, isActive: true, registrationToken: null, roles: superAdmin ? [superAdmin.id] : [] });
+          strapi.log.info(`[bootstrap] admin-panel account created for ${email}`);
+        } else if (process.env.ADMIN_BOOTSTRAP_RESET === 'true') {
+          await strapi.service('admin::user').updateById(existing.id, { password, isActive: true });
+          strapi.log.info(`[bootstrap] admin-panel password reset for ${email}`);
+        }
+      }
+    } catch (err) {
+      strapi.log.warn(`[bootstrap] admin-panel account step skipped: ${err.message}`);
+    }
+
     // ── Account emails (TEC-1344) ─────────────────────────────────────────────
     // Links in password-reset and confirmation emails go to the site, not to Strapi; the
     // wording is plain. SITE_URL changes at cutover. Email confirmation for new accounts is
