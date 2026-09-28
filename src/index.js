@@ -294,6 +294,57 @@ module.exports = {
       }
     }
 
+    // ── Account emails (TEC-1344) ─────────────────────────────────────────────
+    // Links in password-reset and confirmation emails go to the site, not to Strapi; the
+    // wording is plain. SITE_URL changes at cutover. Email confirmation for new accounts is
+    // switched by EMAIL_CONFIRMATION so the site can be ready before it is turned on.
+    try {
+      const site = (process.env.SITE_URL || 'https://alleyne-real-estate.vercel.app').replace(/\/$/, '');
+      const from = process.env.EMAIL_FROM || '';
+      const m = from.match(/^(.*)<(.+)>$/);
+      const fromObj = { name: (m ? m[1] : 'Alleyne Real Estate').trim() || 'Alleyne Real Estate', email: (m ? m[2] : from).trim() };
+      const upStore = strapi.store({ type: 'plugin', name: 'users-permissions' });
+      const advanced = (await upStore.get({ key: 'advanced' })) || {};
+      await upStore.set({
+        key: 'advanced',
+        value: {
+          ...advanced,
+          unique_email: true,
+          allow_register: true,
+          email_reset_password: `${site}/reset-password`,
+          email_confirmation: process.env.EMAIL_CONFIRMATION === 'true',
+          email_confirmation_redirection: `${site}/signin?confirmed=1`,
+        },
+      });
+      const templates = (await upStore.get({ key: 'email' })) || {};
+      const tpl = (key, object, message) => ({
+        ...(templates[key] || {}),
+        options: { ...((templates[key] || {}).options || {}), from: fromObj, response_email: process.env.EMAIL_REPLY_TO || 'info@jalbarbados.com', object, message },
+      });
+      await upStore.set({
+        key: 'email',
+        value: {
+          ...templates,
+          reset_password: tpl(
+            'reset_password',
+            'Reset your Alleyne Real Estate password',
+            '<p>Hello,</p><p>We received a request to reset the password for your Alleyne Real Estate account.</p>' +
+              '<p><a href="<%= URL %>?code=<%= TOKEN %>">Choose a new password</a></p>' +
+              '<p>If you did not ask for this, you can ignore this email; your password stays the same.</p><p>Alleyne Real Estate</p>'
+          ),
+          email_confirmation: tpl(
+            'email_confirmation',
+            'Confirm your email for Alleyne Real Estate',
+            '<p>Hello,</p><p>Please confirm your email address to finish creating your Alleyne Real Estate account.</p>' +
+              '<p><a href="<%= URL %>?confirmation=<%= CODE %>">Confirm my email</a></p>' +
+              '<p>If you did not create an account, you can ignore this email.</p><p>Alleyne Real Estate</p>'
+          ),
+        },
+      });
+    } catch (err) {
+      strapi.log.warn(`[bootstrap] account email settings skipped: ${err.message}`);
+    }
+
     // ── firstPublicAt backfill (TEC-1343 second review) ───────────────────────
     // Listings that were already out (published, not a draft) before firstPublicAt existed
     // get their listing date (or creation) as their first-public moment. Without it, a

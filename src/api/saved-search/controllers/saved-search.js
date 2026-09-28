@@ -28,7 +28,7 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
         strapi.entityService.findMany('api::saved-search.saved-search', {
           filters: where,
           fields: ['name', 'filtersJson', 'alertEnabled', 'lastAlertedAt'],
-          populate: { user: { fields: ['email', 'username', 'blocked'] } },
+          populate: { user: { fields: ['email', 'username', 'blocked', 'confirmed'] } },
           sort: { id: 'asc' },
           start: (page - 1) * pageSize,
           limit: pageSize,

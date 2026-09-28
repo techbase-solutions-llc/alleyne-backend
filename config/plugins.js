@@ -2,15 +2,15 @@ module.exports = ({ env }) => ({
   email: {
     config: {
       provider: "nodemailer",
-      providerOptions: {
-        // jsonTransport: no network calls, no SMTP server required.
-        // Emails are silently swallowed (logged as JSON internally).
-        // Replace with a real SMTP/Resend config when the domain is live.
-        jsonTransport: true,
-      },
+      // Resend over SMTP when a key is set (password reset, email confirmation; TEC-1344);
+      // otherwise emails are swallowed (local development). The sender comes from
+      // EMAIL_FROM, so the jalbarbados.com address at cutover is a settings change.
+      providerOptions: env("RESEND_API_KEY")
+        ? { host: "smtp.resend.com", port: 465, secure: true, auth: { user: "resend", pass: env("RESEND_API_KEY") } }
+        : { jsonTransport: true },
       settings: {
-        defaultFrom: "noreply@realtlist.com",
-        defaultReplyTo: "noreply@realtlist.com",
+        defaultFrom: env("EMAIL_FROM", "Alleyne Real Estate <noreply@example.com>"),
+        defaultReplyTo: env("EMAIL_REPLY_TO", "info@jalbarbados.com"),
       },
     },
   },
