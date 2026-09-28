@@ -19,14 +19,16 @@ module.exports = ({ env }) => ({
       defaultDepth: 5,
     },
   },
+  // Media library files go to Vercel Blob, the same public store as the migrated listing
+  // photos, under strapi/ (local provider in providers/; TEC-1344). Cloudinary was never
+  // configured on Render, so every upload failed.
   upload: {
     config: {
-      provider: "cloudinary",
+      provider: "strapi-provider-upload-vercel-blob",
       providerOptions: {
-        cloud_name: env("CLOUDINARY_NAME"),
-        api_key: env("CLOUDINARY_KEY"),
-        api_secret: env("CLOUDINARY_SECRET"),
+        token: env("BLOB_READ_WRITE_TOKEN"),
       },
+      sizeLimit: 20 * 1024 * 1024, // 20 MB per file, plenty for listing photos
       actionOptions: {
         upload: {},
         uploadStream: {},

@@ -26,6 +26,7 @@
     "react-dom": "^18.0.0",
     "react-router-dom": "5.3.4",
     "strapi-plugin-populate-deep": "^3.0.1",
+    "strapi-provider-upload-vercel-blob": "file:providers/strapi-provider-upload-vercel-blob",
     "styled-components": "5.3.3"
   },
   "author": {
