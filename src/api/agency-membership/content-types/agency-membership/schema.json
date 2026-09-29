@@ -46,6 +46,16 @@
       ],
       "default": "invited",
       "required": true
+    },
+    "department": {
+      "type": "enumeration",
+      "enum": [
+        "all",
+        "sales",
+        "lettings",
+        "holiday"
+      ],
+      "default": "all"
     }
   }
 }
