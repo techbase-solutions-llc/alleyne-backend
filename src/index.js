@@ -421,6 +421,18 @@ module.exports = {
       const bps = await knex(meta.tableName).whereNull(col('syndicateBps')).update({ [col('syndicateBps')]: false });
       const rm = await knex(meta.tableName).whereNull(col('syndicateRightmove')).update({ [col('syndicateRightmove')]: false });
       if (src || bps || rm) strapi.log.info(`[bootstrap] defaults filled: listingSource ${src}, syndicateBps ${bps}, syndicateRightmove ${rm}`);
+      // Barbados Property Search takes every direct sale listing unless told no (Eddie,
+      // 28 Sep walkthrough), so existing direct sale listings start with the switch on.
+      // Once only, so a switch turned off later stays off.
+      const store = strapi.store({ type: 'core', name: 'alleyne-migrations' });
+      if (!(await store.get({ key: 'bps-default-v1' }))) {
+        const on = await knex(meta.tableName)
+          .where(col('transactionType'), 'for_sale')
+          .where(col('listingSource'), 'direct')
+          .update({ [col('syndicateBps')]: true });
+        await store.set({ key: 'bps-default-v1', value: { at: new Date().toISOString(), rows: on } });
+        strapi.log.info(`[bootstrap] Barbados Property Search on for ${on} direct sale listing(s)`);
+      }
     } catch (err) {
       strapi.log.warn(`[bootstrap] soldAt backfill skipped: ${err.message}`);
     }
