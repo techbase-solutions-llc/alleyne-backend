@@ -411,6 +411,9 @@
     "syndicateRightmove": {
       "type": "boolean",
       "default": false
+    },
+    "seasons": {
+      "type": "json"
     }
   }
 }
