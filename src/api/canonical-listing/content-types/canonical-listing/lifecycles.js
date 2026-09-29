@@ -25,7 +25,8 @@ module.exports = {
     // public, the site falls back to createdAt, which is the same moment.
     const next = { ...data, status: data.status ?? 'draft', publishedAt: data.publishedAt ?? null };
     const now = new Date().toISOString();
-    Object.assign(data, publicPatch({ prev: null, next, now }), statusPatch({ prev: null, next, now }));
+    // create: a new row always gets its own key and sold date (never a clone of the source).
+    Object.assign(data, publicPatch({ prev: null, next, now }), statusPatch({ prev: null, next, now, create: true }));
     event.params.data = data;
   },
 
@@ -37,6 +38,15 @@ module.exports = {
     const now = new Date().toISOString();
     Object.assign(data, publicPatch({ prev, next: data, now }), statusPatch({ prev, next: data, now }));
     event.params.data = data;
+  },
+
+  // Status and its stamps must go through beforeUpdate one row at a time; no bulk path
+  // sets them today, and any future one must fail loudly rather than skip the stamps.
+  beforeUpdateMany(event) {
+    const data = event.params.data || {};
+    if (data.status !== undefined || "privateToken" in data || "soldAt" in data) {
+      throw new Error("Listing status can only be changed one listing at a time.");
+    }
   },
 
   // The admin panel's bulk publish uses updateMany, which skips beforeUpdate (second

@@ -16,6 +16,16 @@ test('leaving sold (relisted) clears soldAt', () => {
   assert.deepEqual(statusPatch({ prev: { status: 'sold', soldAt: '2026-09-01T00:00:00.000Z' }, next: { status: 'active' }, now, token }), { soldAt: null });
 });
 
+test('archiving a sold listing keeps when it sold (history); relisting still clears it', () => {
+  assert.deepEqual(statusPatch({ prev: { status: 'sold', soldAt: '2026-09-01T00:00:00.000Z' }, next: { status: 'archived' }, now, token }), {});
+  assert.deepEqual(statusPatch({ prev: { status: 'archived', soldAt: '2026-09-01T00:00:00.000Z' }, next: { status: 'active' }, now, token }), { soldAt: null });
+});
+
+test('a new listing always starts clean: no key unless quiet, no sold date unless sold (a clone cannot inherit them)', () => {
+  assert.deepEqual(statusPatch({ prev: null, next: { status: 'draft' }, now, token, create: true }), { soldAt: null, privateToken: null });
+  assert.deepEqual(statusPatch({ prev: null, next: { status: 'quiet' }, now, token, create: true }), { soldAt: null, privateToken: 'tok123' });
+});
+
 test('a listing created as sold is stamped', () => {
   assert.deepEqual(statusPatch({ prev: null, next: { status: 'sold' }, now, token }), { soldAt: now });
 });

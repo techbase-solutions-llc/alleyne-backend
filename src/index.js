@@ -395,6 +395,8 @@ module.exports = {
         .whereNull(col('firstPublicAt'))
         .whereNotNull(col('publishedAt'))
         .whereNot(col('status'), 'draft')
+        // Quiet listings are not public: they get their stamp when they go live (review).
+        .whereNot(col('status'), 'quiet')
         .update({ [col('firstPublicAt')]: knex.raw(`COALESCE(CAST(?? AS timestamp), ??)`, [col('listedAt'), col('createdAt')]) });
       if (filled) strapi.log.info(`[bootstrap] firstPublicAt backfilled on ${filled} listing(s)`);
     } catch (err) {
@@ -413,6 +415,12 @@ module.exports = {
         .whereNull(col('soldAt'))
         .update({ [col('soldAt')]: knex.fn.now() });
       if (stamped) strapi.log.info(`[bootstrap] soldAt started on ${stamped} sold listing(s)`);
+      // New fields default in Strapi, not in the database: fill older rows once so queries
+      // (e.g. a future portal feed) can rely on them. Idempotent.
+      const src = await knex(meta.tableName).whereNull(col('listingSource')).update({ [col('listingSource')]: 'direct' });
+      const bps = await knex(meta.tableName).whereNull(col('syndicateBps')).update({ [col('syndicateBps')]: false });
+      const rm = await knex(meta.tableName).whereNull(col('syndicateRightmove')).update({ [col('syndicateRightmove')]: false });
+      if (src || bps || rm) strapi.log.info(`[bootstrap] defaults filled: listingSource ${src}, syndicateBps ${bps}, syndicateRightmove ${rm}`);
     } catch (err) {
       strapi.log.warn(`[bootstrap] soldAt backfill skipped: ${err.message}`);
     }

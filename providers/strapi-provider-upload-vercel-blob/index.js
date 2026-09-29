@@ -58,6 +58,11 @@ module.exports = {
       },
       async delete(file) {
         if (!file || !file.url) return;
+        // Only ever delete what this provider wrote (strapi/): the same store holds the
+        // migrated listing photos under listings/.
+        let key = "";
+        try { key = new URL(file.url).pathname; } catch { return; }
+        if (!key.startsWith(`/${PREFIX}/`)) return;
         await del(file.url, { token: requireToken() });
       },
       isPrivate() {
