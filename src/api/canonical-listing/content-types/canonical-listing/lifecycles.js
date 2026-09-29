@@ -13,6 +13,8 @@
  * That variable was never set here, so nothing was sent; the site now pulls instead.
  */
 const { publicPatch, AVAILABLE, barbadosDate } = require('../../../../utils/first-public');
+// soldAt (Sold banner period) and privateToken (quiet listing link): TEC-1412.
+const { statusPatch } = require('../../../../utils/status-stamps');
 
 const UID = 'api::canonical-listing.canonical-listing';
 
@@ -22,16 +24,18 @@ module.exports = {
     // An absent publishedAt on create counts as unpublished; if such a listing is in fact
     // public, the site falls back to createdAt, which is the same moment.
     const next = { ...data, status: data.status ?? 'draft', publishedAt: data.publishedAt ?? null };
-    Object.assign(data, publicPatch({ prev: null, next, now: new Date().toISOString() }));
+    const now = new Date().toISOString();
+    Object.assign(data, publicPatch({ prev: null, next, now }), statusPatch({ prev: null, next, now }));
     event.params.data = data;
   },
 
   async beforeUpdate(event) {
     const data = event.params.data || {};
-    if (data.status === undefined && data.publishedAt === undefined) return;
-    const prev = await strapi.db.query(UID).findOne({ where: event.params.where, select: ['status', 'publishedAt', 'listedAt', 'firstPublicAt'] });
+    if (data.status === undefined && data.publishedAt === undefined && !('privateToken' in data) && !('soldAt' in data)) return;
+    const prev = await strapi.db.query(UID).findOne({ where: event.params.where, select: ['status', 'publishedAt', 'listedAt', 'firstPublicAt', 'soldAt', 'privateToken'] });
     if (!prev) return;
-    Object.assign(data, publicPatch({ prev, next: data, now: new Date().toISOString() }));
+    const now = new Date().toISOString();
+    Object.assign(data, publicPatch({ prev, next: data, now }), statusPatch({ prev, next: data, now }));
     event.params.data = data;
   },
 

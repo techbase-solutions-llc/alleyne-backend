@@ -37,7 +37,8 @@
         "under_offer",
         "sold",
         "rented",
-        "archived"
+        "archived",
+        "quiet"
       ],
       "default": "draft",
       "required": true
@@ -387,6 +388,29 @@
     },
     "amenities": {
       "type": "json"
+    },
+    "soldAt": {
+      "type": "datetime"
+    },
+    "privateToken": {
+      "type": "string",
+      "configurable": false
+    },
+    "listingSource": {
+      "type": "enumeration",
+      "enum": [
+        "direct",
+        "co_broke"
+      ],
+      "default": "direct"
+    },
+    "syndicateBps": {
+      "type": "boolean",
+      "default": false
+    },
+    "syndicateRightmove": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

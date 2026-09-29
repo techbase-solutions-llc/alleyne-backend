@@ -6,7 +6,9 @@ const { createCoreController } = require('@strapi/strapi').factories;
 // sanitizer would strip the listing from their own favourites. The listing is attached
 // here with a fixed set of card fields, and only while the public can see it.
 const LISTING_FIELDS = ['slug', 'title', 'transactionType', 'parish', 'bedrooms', 'bathrooms', 'priceMinor', 'nightlyRateMinor'];
-const HIDDEN = new Set(['draft', 'suppressed']);
+// Quiet listings are shared only by their private link, and archived ones are off the
+// site: neither can be saved or shown as a saved card (TEC-1412).
+const HIDDEN = new Set(['draft', 'suppressed', 'quiet', 'archived']);
 const cardOf = (l) => {
   if (!l || l.publishedAt == null || HIDDEN.has(l.status)) return null;
   const out = { id: l.id };

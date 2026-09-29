@@ -400,5 +400,21 @@ module.exports = {
     } catch (err) {
       strapi.log.warn(`[bootstrap] firstPublicAt backfill skipped: ${err.message}`);
     }
+
+    // ── soldAt backfill (TEC-1412) ─────────────────────────────────────────────
+    // Sold listings from before soldAt existed start their Sold banner period now, so
+    // the site's daily archive does not take them all down at once. Idempotent.
+    try {
+      const meta = strapi.db.metadata.get('api::canonical-listing.canonical-listing');
+      const col = (a) => meta.attributes[a].columnName;
+      const knex = strapi.db.connection;
+      const stamped = await knex(meta.tableName)
+        .where(col('status'), 'sold')
+        .whereNull(col('soldAt'))
+        .update({ [col('soldAt')]: knex.fn.now() });
+      if (stamped) strapi.log.info(`[bootstrap] soldAt started on ${stamped} sold listing(s)`);
+    } catch (err) {
+      strapi.log.warn(`[bootstrap] soldAt backfill skipped: ${err.message}`);
+    }
   },
 };
