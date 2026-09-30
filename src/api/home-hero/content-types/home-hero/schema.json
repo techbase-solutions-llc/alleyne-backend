@@ -1,0 +1,19 @@
+{
+  "kind": "singleType",
+  "collectionName": "home_heroes",
+  "info": {
+    "singularName": "home-hero",
+    "pluralName": "home-heroes",
+    "displayName": "Home page slides",
+    "description": "The pictures that cross-fade at the top of the website, in order, each with an optional caption and link. Written as one list by the back office's Home page screen."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "slides": {
+      "type": "json"
+    }
+  }
+}
