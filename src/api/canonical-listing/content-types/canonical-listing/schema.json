@@ -152,10 +152,10 @@
       "default": "BB"
     },
     "lat": {
-      "type": "decimal"
+      "type": "float"
     },
     "lng": {
-      "type": "decimal"
+      "type": "float"
     },
     "bedrooms": {
       "type": "integer"
