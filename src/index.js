@@ -345,6 +345,15 @@ module.exports = {
       // the wording is written once, so later edits in the admin panel survive restarts
       // (review). An unset EMAIL_FROM leaves the sender as it is.
       const firstTime = !(await upStore.get({ key: 'alleyne-email-templates-v1' }));
+      // The confirm link goes to the website, which passes the code on (5 Oct 2026: the old
+      // link showed the backend's own address). Applied on every boot to whatever wording is
+      // saved, so admin-panel edits survive and the link follows SITE_URL at cutover.
+      const siteConfirmLink = (t) => {
+        const msg = t && t.options && t.options.message;
+        if (typeof msg !== 'string') return t;
+        const next = msg.replace(/href="[^"]*\?confirmation=<%= CODE %>"/g, `href="${site}/confirm-email?confirmation=<%= CODE %>"`);
+        return { ...t, options: { ...t.options, message: next } };
+      };
       const tpl = (key, object, message) => {
         const current = (templates[key] || {}).options || {};
         return {
@@ -368,13 +377,13 @@ module.exports = {
               '<p><a href="<%= URL %>?code=<%= TOKEN %>">Choose a new password</a></p>' +
               '<p>If you did not ask for this, you can ignore this email; your password stays the same.</p><p>Alleyne Real Estate</p>'
           ),
-          email_confirmation: tpl(
+          email_confirmation: siteConfirmLink(tpl(
             'email_confirmation',
             'Confirm your email for Alleyne Real Estate',
             '<p>Hello,</p><p>Please confirm your email address to finish creating your Alleyne Real Estate account.</p>' +
-              '<p><a href="<%= URL %>?confirmation=<%= CODE %>">Confirm my email</a></p>' +
+              `<p><a href="${site}/confirm-email?confirmation=<%= CODE %>">Confirm my email</a></p>` +
               '<p>If you did not create an account, you can ignore this email.</p><p>Alleyne Real Estate</p>'
-          ),
+          )),
         },
       });
       if (firstTime) await upStore.set({ key: 'alleyne-email-templates-v1', value: { at: new Date().toISOString() } });
