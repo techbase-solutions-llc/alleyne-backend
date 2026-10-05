@@ -351,7 +351,8 @@ module.exports = {
       const siteConfirmLink = (t) => {
         const msg = t && t.options && t.options.message;
         if (typeof msg !== 'string') return t;
-        const next = msg.replace(/href="[^"]*\?confirmation=<%= CODE %>"/g, `href="${site}/confirm-email?confirmation=<%= CODE %>"`);
+        // Either quote style, with or without spaces inside <%= %> (an admin-panel edit).
+        const next = msg.replace(/href=(["'])[^"']*\?confirmation=<%=\s*CODE\s*%>\1/g, `href="${site}/confirm-email?confirmation=<%= CODE %>"`);
         return { ...t, options: { ...t.options, message: next } };
       };
       const tpl = (key, object, message) => {
