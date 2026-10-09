@@ -39,3 +39,10 @@ test('a client label (8 Oct meeting) is a one-line name and note, bounded, and o
   // The ordinary fields never carry a label: it is kept only for team members (controller).
   assert.deepEqual(clean({ name: 'Buy', clientName: 'Ann' }), { name: 'Buy' });
 });
+
+const { searchLimit } = require('./saved-search-input');
+
+test('a team member can keep searches for many clients; everyone else keeps 20 (review, 9 Oct)', () => {
+  assert.equal(searchLimit(false), 20);
+  assert.equal(searchLimit(true), 200);
+});

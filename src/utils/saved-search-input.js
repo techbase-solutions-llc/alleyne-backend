@@ -37,4 +37,9 @@ const clientLabel = (body) => {
   return out;
 };
 
-module.exports = { clean, userIdOf, clientLabel };
+// How many saved searches an account may keep. The cap of 20 stops an account made with
+// someone else's address from flooding them with alerts (TEC-1343 review). A team member
+// saves searches for their clients as well as their own (8 Oct meeting), so theirs is 200.
+const searchLimit = (teamMember) => (teamMember ? 200 : 20);
+
+module.exports = { clean, userIdOf, clientLabel, searchLimit };
