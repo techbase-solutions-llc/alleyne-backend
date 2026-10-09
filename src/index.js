@@ -236,10 +236,12 @@ module.exports = {
       'api::listing-availability.listing-availability.update',
       'api::listing-availability.listing-availability.delete',
     ];
-    const toRevoke = (authenticatedRole.permissions ?? []).filter((p) => REVOKED.includes(p.action));
-    if (toRevoke.length > 0) {
-      strapi.log.info(`[bootstrap] Revoking ${toRevoke.length} permission(s) from Authenticated role`);
-      await Promise.all(toRevoke.map((p) => strapi.query('plugin::users-permissions.permission').delete({ where: { id: p.id } })));
+    // Named authToRevoke: `toRevoke` is the helper from role-permissions, used for the
+    // Public role below (a local of the same name stopped the backend starting; review).
+    const authToRevoke = toRevoke(authenticatedRole.permissions, REVOKED);
+    if (authToRevoke.length > 0) {
+      strapi.log.info(`[bootstrap] Revoking ${authToRevoke.length} permission(s) from Authenticated role`);
+      await Promise.all(authToRevoke.map((p) => strapi.query('plugin::users-permissions.permission').delete({ where: { id: p.id } })));
     }
 
     // ── Public role permissions (read-only editorial content) ─────────────────

@@ -15,9 +15,40 @@ function limitConfirmationResend(routes) {
   return routes.map((r) => {
     if (r.handler !== 'auth.sendEmailConfirmation') return r;
     const mw = (r.config && r.config.middlewares) || [];
-    if (mw.some((m) => (typeof m === 'string' ? m : m && m.name) === RATE_LIMIT)) return r;
+    if (mw.some(isRateLimit)) return r;
     return { ...r, config: { ...r.config, middlewares: [...mw, { name: RATE_LIMIT, config: RESEND_LIMIT }] } };
   });
 }
 
-module.exports = { limitConfirmationResend, RESEND_LIMIT };
+/**
+ * Strapi's limiter counts sign-in tries per `email` field, path and caller address. Sign-in
+ * itself reads `identifier`, so `email` was a free field: a new made-up value on every try
+ * gave a fresh allowance, and passwords could be guessed without ever being slowed down
+ * (review, 8 Oct 2026). This step runs just before the limiter and overwrites `email` with
+ * the account being tried, so the allowance is per account and caller and cannot be reset.
+ * Sign-in ignores `email` (its body check allows unknown fields), so nothing else changes.
+ */
+async function signInLimitKey(ctx, next) {
+  const body = ctx.request && ctx.request.body;
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    body.email = String(body.identifier ?? '').trim().toLowerCase();
+  }
+  return next();
+}
+
+const isRateLimit = (m) => (typeof m === 'string' ? m : m && m.name) === RATE_LIMIT;
+
+/** Puts signInLimitKey in front of the limiter on POST /auth/local only. Used by
+    src/extensions/users-permissions/strapi-server.js. */
+function pinSignInLimitKey(routes) {
+  return routes.map((r) => {
+    if (r.handler !== 'auth.callback' || r.method !== 'POST' || r.path !== '/auth/local') return r;
+    const mw = (r.config && r.config.middlewares) || [];
+    if (mw.includes(signInLimitKey)) return r;
+    const at = mw.findIndex(isRateLimit);
+    const next = at < 0 ? [signInLimitKey, ...mw] : [...mw.slice(0, at), signInLimitKey, ...mw.slice(at)];
+    return { ...r, config: { ...r.config, middlewares: next } };
+  });
+}
+
+module.exports = { limitConfirmationResend, RESEND_LIMIT, pinSignInLimitKey, signInLimitKey };
