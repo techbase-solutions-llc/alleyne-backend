@@ -25,6 +25,14 @@
     "lastAlertedAt": {
       "type": "datetime"
     },
+    "clientName": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "clientNote": {
+      "type": "string",
+      "maxLength": 300
+    },
     "user": {
       "type": "relation",
       "relation": "manyToOne",

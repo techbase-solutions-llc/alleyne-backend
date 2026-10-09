@@ -11,7 +11,16 @@ const isApiToken = (ctx) =>
 // Abuse limits (TEC-1343 review): sign-up needs no email check, so an account made with
 // someone else's address could otherwise flood them with alerts.
 const MAX_SEARCHES = 20;
-const { clean, userIdOf } = require('../../../utils/saved-search-input');
+const { clean, userIdOf, clientLabel } = require('../../../utils/saved-search-input');
+
+// A client label (8 Oct 2026 meeting) is kept only for active team members: the alert run
+// puts it in an email's subject, so an ordinary account must not be able to set one.
+const isTeamMember = async (strapi, userId) =>
+  (await strapi.entityService.count('api::agency-membership.agency-membership', { filters: { user: { id: userId }, status: 'active' } })) > 0;
+const labelFor = async (strapi, userId, body) => {
+  const label = clientLabel(body);
+  return Object.keys(label).length && (await isTeamMember(strapi, userId)) ? label : {};
+};
 
 module.exports = createCoreController('api::saved-search.saved-search', ({ strapi }) => ({
   /**
@@ -46,7 +55,7 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
       const [entities, total] = await Promise.all([
         strapi.entityService.findMany('api::saved-search.saved-search', {
           filters: where,
-          fields: ['name', 'filtersJson', 'alertEnabled', 'lastAlertedAt'],
+          fields: ['name', 'filtersJson', 'alertEnabled', 'lastAlertedAt', 'clientName', 'clientNote'],
           populate: { user: { fields: ['email', 'username', 'blocked', 'confirmed'] } },
           sort: { id: 'asc' },
           start: (page - 1) * pageSize,
@@ -94,6 +103,7 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
 
     const data = clean(ctx.request.body?.data ?? {});
     if (!data.name || !data.filtersJson) return ctx.badRequest('name and filtersJson.query are required');
+    Object.assign(data, await labelFor(strapi, user.id, ctx.request.body?.data));
     const count = await strapi.entityService.count('api::saved-search.saved-search', { filters: { user: { id: user.id } } });
     if (count >= MAX_SEARCHES) return ctx.badRequest(`You can keep up to ${MAX_SEARCHES} saved searches.`);
 
@@ -157,10 +167,11 @@ module.exports = createCoreController('api::saved-search.saved-search', ({ strap
       return ctx.forbidden('You can only update your own saved searches.');
     }
 
-    // Only name, filters and the alert switch. Turning alerts back on starts afresh, so the
-    // next run sets a new starting point instead of emailing everything since the last
-    // alert (review); a user can never set lastAlertedAt themselves.
-    const data = clean(ctx.request.body?.data ?? {});
+    // Only name, filters and the alert switch (and a team member's client label). Turning
+    // alerts back on starts afresh, so the next run sets a new starting point instead of
+    // emailing everything since the last alert (review); a user can never set lastAlertedAt
+    // themselves.
+    const data = { ...clean(ctx.request.body?.data ?? {}), ...(await labelFor(strapi, user.id, ctx.request.body?.data)) };
     if (data.alertEnabled === true && !saved.alertEnabled) data.lastAlertedAt = null;
     const entity = await strapi.entityService.update('api::saved-search.saved-search', saved.id, { data });
     const sanitizedEntity = await this.sanitizeOutput(entity, ctx);
