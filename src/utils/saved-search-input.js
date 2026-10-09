@@ -14,4 +14,13 @@ const clean = (body) => {
   return out;
 };
 
-module.exports = { clean };
+// The account the site's stop-alerts link names (review, 8 Oct 2026): a whole positive
+// number or nothing, never a query object.
+const userIdOf = (body) => {
+  const v = body && body.userId;
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
+module.exports = { clean, userIdOf };

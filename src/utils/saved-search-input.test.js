@@ -14,3 +14,12 @@ test('a user can only write name, filters and the alert switch, bounded (TEC-134
   assert.deepEqual(clean({ filtersJson: { query: 'q'.repeat(4001) } }), {}, 'oversized query refused');
   assert.deepEqual(clean({ filtersJson: 'type=for_sale', alertEnabled: 'yes' }), {}, 'wrong types ignored');
 });
+
+const { userIdOf } = require('./saved-search-input');
+
+test('turning alerts off from an email link names one account by a whole positive number (review, 8 Oct)', () => {
+  assert.equal(userIdOf({ userId: 41 }), 41);
+  assert.equal(userIdOf({ userId: '41' }), 41);
+  for (const bad of [{}, null, undefined, { userId: 0 }, { userId: -3 }, { userId: 1.5 }, { userId: 'x' }, { userId: [41] }, { userId: { $gt: 0 } }])
+    assert.equal(userIdOf(bad), null, JSON.stringify(bad));
+});

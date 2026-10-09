@@ -11,9 +11,28 @@ const isApiToken = (ctx) =>
 // Abuse limits (TEC-1343 review): sign-up needs no email check, so an account made with
 // someone else's address could otherwise flood them with alerts.
 const MAX_SEARCHES = 20;
-const { clean } = require('../../../utils/saved-search-input');
+const { clean, userIdOf } = require('../../../utils/saved-search-input');
 
 module.exports = createCoreController('api::saved-search.saved-search', ({ strapi }) => ({
+  /**
+   * Turn off every alert of one account (review, 8 Oct 2026): the signed "stop these
+   * emails" link in alert emails, which works without signing in. The site checks the
+   * link's signature and calls this with its full-access token; no role is granted it.
+   * The searches stay; only their alert switches go off.
+   */
+  async alertsOff(ctx) {
+    if (ctx.state.user || !isApiToken(ctx)) return ctx.forbidden();
+    const userId = userIdOf(ctx.request.body);
+    if (!userId) return ctx.badRequest('userId is required');
+    const rows = await strapi.entityService.findMany('api::saved-search.saved-search', {
+      filters: { user: { id: userId }, alertEnabled: true },
+      fields: ['id'],
+      limit: 100,
+    });
+    for (const r of rows) await strapi.entityService.update('api::saved-search.saved-search', r.id, { data: { alertEnabled: false } });
+    ctx.body = { stopped: rows.length };
+  },
+
   /**
    * Find saved searches — scoped to the authenticated user via entityService
    * to bypass Strapi's content-API sanitizer, which rejects filters on

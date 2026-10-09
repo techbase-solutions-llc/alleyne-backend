@@ -1,4 +1,14 @@
 module.exports = ({ env }) => ({
+  // Sign-in tokens last 7 days, as long as the site's cookie (owner's decision, 8 Oct 2026;
+  // Strapi's default was 30 days, so a copied token outlived sign-out by weeks). Sign-up
+  // takes only username, email and password: with allowedFields unset, Strapi 4 also took
+  // agency, role_type, verification_status and the rest of the profile (review, 8 Oct).
+  "users-permissions": {
+    config: {
+      jwt: { expiresIn: "7d" },
+      register: { allowedFields: [] },
+    },
+  },
   email: {
     config: {
       provider: "nodemailer",
