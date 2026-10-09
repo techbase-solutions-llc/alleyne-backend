@@ -1,20 +1,8 @@
 'use strict';
 
-// Permissions granted to the Public (unauthenticated) role.
-// Used for content that must be readable without a login.
-const PUBLIC_PERMISSIONS = [
-  // RealtGuide — publicly readable editorial content
-  'api::guide-article.guide-article.find',
-  'api::guide-article.guide-article.findOne',
-  // Blog articles — publicly readable
-  'api::article.article.find',
-  'api::article.article.findOne',
-  // Agent testimonials — publicly readable
-  'api::agent-testimonial.agent-testimonial.find',
-  'api::agent-testimonial.agent-testimonial.findOne',
-  // Property submission — public users can submit without an account
-  'api::property-submission.property-submission.create',
-];
+// Public role grants and the grants every boot removes (review, 8 Oct 2026).
+const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, toRevoke } = require('./utils/role-permissions');
+const { trustLastProxyHop } = require('./utils/client-ip');
 
 const AUTHENTICATED_PERMISSIONS = [
   // Signed-in users are the agency's clients (TEC-1343 review). Everything agents do
@@ -154,6 +142,9 @@ module.exports = {
    * so Strapi's own migrations can run without conflicts.
    */
   async register({ strapi }) {
+    // The caller's address for rate limits is the hop Render's proxy added, never one the
+    // caller wrote into X-Forwarded-For (review, 8 Oct 2026; utils/client-ip.js).
+    trustLastProxyHop(strapi.server.app);
     try {
       await preMigrationCleanup(strapi);
     } catch (e) {
@@ -270,6 +261,11 @@ module.exports = {
             })
           )
         );
+      }
+      const publicToRevoke = toRevoke(publicRole.permissions, PUBLIC_REVOKED);
+      if (publicToRevoke.length > 0) {
+        strapi.log.info(`[bootstrap] Revoking ${publicToRevoke.length} permission(s) from Public role`);
+        await Promise.all(publicToRevoke.map((p) => strapi.query('plugin::users-permissions.permission').delete({ where: { id: p.id } })));
       }
     }
 
