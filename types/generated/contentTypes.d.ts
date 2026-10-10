@@ -2390,6 +2390,14 @@ export interface ApiSavedSearchSavedSearch extends Schema.CollectionType {
     filtersJson: Attribute.JSON & Attribute.Required;
     alertEnabled: Attribute.Boolean & Attribute.DefaultTo<false>;
     lastAlertedAt: Attribute.DateTime;
+    clientName: Attribute.String &
+      Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    clientNote: Attribute.String &
+      Attribute.SetMinMaxLength<{
+        maxLength: 300;
+      }>;
     user: Attribute.Relation<
       'api::saved-search.saved-search',
       'manyToOne',

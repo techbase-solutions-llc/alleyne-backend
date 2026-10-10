@@ -23,3 +23,26 @@ test('turning alerts off from an email link names one account by a whole positiv
   for (const bad of [{}, null, undefined, { userId: 0 }, { userId: -3 }, { userId: 1.5 }, { userId: 'x' }, { userId: [41] }, { userId: { $gt: 0 } }])
     assert.equal(userIdOf(bad), null, JSON.stringify(bad));
 });
+
+const { clientLabel } = require('./saved-search-input');
+
+test('a client label (8 Oct meeting) is a one-line name and note, bounded, and only when given', () => {
+  const nl = String.fromCharCode(10);
+  assert.deepEqual(clientLabel({ clientName: '  Ann' + nl + 'Smith ', clientNote: ' Beachfront' + nl + 'only ' }), { clientName: 'Ann Smith', clientNote: 'Beachfront only' });
+  assert.deepEqual(clientLabel({ clientName: '', clientNote: '' }), { clientName: null, clientNote: null }, 'empty clears the label');
+  assert.deepEqual(clientLabel({ clientName: 'Ann' }), { clientName: 'Ann' }, 'only the fields sent');
+  assert.deepEqual(clientLabel({ clientName: '', clientNote: 'a note' }), { clientName: null, clientNote: null }, 'no name: no note either');
+  assert.equal(clientLabel({ clientName: 'n'.repeat(200) }).clientName.length, 80);
+  assert.equal(clientLabel({ clientName: 'Ann', clientNote: 'x'.repeat(900) }).clientNote.length, 300);
+  assert.deepEqual(clientLabel({ clientName: 5, clientNote: ['x'] }), {}, 'wrong types ignored');
+  assert.deepEqual(clientLabel(null), {});
+  // The ordinary fields never carry a label: it is kept only for team members (controller).
+  assert.deepEqual(clean({ name: 'Buy', clientName: 'Ann' }), { name: 'Buy' });
+});
+
+const { searchLimit } = require('./saved-search-input');
+
+test('a team member can keep searches for many clients; everyone else keeps 20 (review, 9 Oct)', () => {
+  assert.equal(searchLimit(false), 20);
+  assert.equal(searchLimit(true), 200);
+});
