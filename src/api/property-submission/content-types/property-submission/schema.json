@@ -102,6 +102,9 @@
         "no",
         "negotiable"
       ]
+    },
+    "activecampaignContactId": {
+      "type": "string"
     }
   }
 }
