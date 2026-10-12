@@ -31,9 +31,28 @@ function limitConfirmationResend(routes) {
 async function signInLimitKey(ctx, next) {
   const body = ctx.request && ctx.request.body;
   if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const account = await emailForUsername(body.identifier);
+    if (account) body.identifier = account;
     body.email = String(body.identifier ?? '').trim().toLowerCase();
   }
   return next();
+}
+
+/**
+ * Strapi matches a username exactly, so "danielle dickenson" typed on a phone did not find
+ * "Danielle Dickenson" (12 Oct). A username (anything without @) is looked up without regard
+ * to case and its account's email used instead; an email, or a name with no account, is left
+ * as typed. Never throws: sign-in goes on as before if the lookup fails.
+ */
+async function emailForUsername(identifier) {
+  const name = String(identifier ?? '').trim();
+  if (!name || name.includes('@') || typeof strapi === 'undefined' || !strapi || !strapi.db) return null;
+  try {
+    const user = await strapi.db.query('plugin::users-permissions.user').findOne({ where: { username: { $eqi: name } }, select: ['email'] });
+    return user && user.email ? user.email : null;
+  } catch {
+    return null;
+  }
 }
 
 const isRateLimit = (m) => (typeof m === 'string' ? m : m && m.name) === RATE_LIMIT;

@@ -85,3 +85,30 @@ test("rotating the email field no longer resets the sign-in limit", async () => 
   // Another account from the same address has its own allowance.
   await run([signInLimitKey, limiter], { identifier: "someone-else@example.com", password: "p" }, "203.0.113.8");
 });
+
+// 12 Oct: Danielle signs in with her username, which has capitals and a space. Strapi matches
+// a username exactly, so typed in lower case (as phones do) it failed. A username is now
+// looked up without regard to case and replaced by the account's email before sign-in.
+test("a username signs in whatever its capitals; an email or an unknown name is left alone", async () => {
+  const users = [{ username: "Danielle Sample", email: "danielle@example.com" }];
+  const asked = [];
+  global.strapi = { db: { query: () => ({ findOne: async ({ where }) => { asked.push(where); const want = String(where.username.$eqi).toLowerCase(); return users.find((u) => u.username.toLowerCase() === want) ?? null; } }) } };
+  try {
+    const lower = { identifier: "danielle sample", password: "x" };
+    await signInLimitKey({ request: { body: lower } }, async () => {});
+    assert.equal(lower.identifier, "danielle@example.com");
+    assert.equal(lower.email, "danielle@example.com");
+
+    const mail = { identifier: "Someone@Example.com", password: "x" };
+    asked.length = 0;
+    await signInLimitKey({ request: { body: mail } }, async () => {});
+    assert.equal(mail.identifier, "Someone@Example.com");
+    assert.equal(asked.length, 0);
+
+    const unknown = { identifier: "nobody here", password: "x" };
+    await signInLimitKey({ request: { body: unknown } }, async () => {});
+    assert.equal(unknown.identifier, "nobody here");
+  } finally {
+    delete global.strapi;
+  }
+});
