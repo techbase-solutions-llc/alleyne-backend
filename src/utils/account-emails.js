@@ -100,7 +100,12 @@ function siteConfirmLink(t, site) {
     admin-panel edit is kept. */
 function moveSite(message, from, to) {
   if (typeof message !== 'string' || !from || trimSite(from) === trimSite(to)) return message;
-  return message.split(trimSite(from)).join(trimSite(to)).split(hostOf(from)).join(hostOf(to));
+  const moved = message.split(trimSite(from)).join(trimSite(to));
+  // The bare host only where it stands alone: not inside an email address, a longer host
+  // (www.<host>, already moved above) or a longer name (review, 13 Oct: a plain swap gave
+  // www.www.<host> and info@www.<host> when the new site only added www).
+  const host = hostOf(from).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return moved.replace(new RegExp(`(?<![\\w.@-])${host}(?![\\w-])`, 'g'), hostOf(to));
 }
 
 /** The users-permissions "email" settings to save on boot, and the version record to save

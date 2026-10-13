@@ -64,3 +64,14 @@ test('the confirm link is pointed at the site whatever quotes or spaces an edit 
   assert.equal(t.options.message, '<a href="https://www.example.com/confirm-email?confirmation=<%= CODE %>">x</a>');
   assert.equal(siteConfirmLink(undefined, SITE), undefined);
 });
+
+// Review, 13 Oct: a plain substring swap turned https://jalbarbados.com into
+// https://www.www.jalbarbados.com when the new site only added www, and changed
+// info@jalbarbados.com into info@www.jalbarbados.com.
+test('moving to a www address changes the site and its host once, never an email address', () => {
+  const msg = '<a href="https://jalbarbados.com/x">jalbarbados.com</a> write to info@jalbarbados.com';
+  assert.equal(
+    moveSite(msg, 'https://jalbarbados.com', 'https://www.jalbarbados.com'),
+    '<a href="https://www.jalbarbados.com/x">www.jalbarbados.com</a> write to info@jalbarbados.com'
+  );
+});
