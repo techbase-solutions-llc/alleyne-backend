@@ -3,6 +3,7 @@
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
 const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, toRevoke } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
+const { TEMPLATE_VERSION, nextEmailSettings } = require('./utils/account-emails');
 
 const AUTHENTICATED_PERMISSIONS = [
   // Signed-in users are the agency's clients (TEC-1343 review). Everything agents do
@@ -338,54 +339,21 @@ module.exports = {
           email_confirmation_redirection: `${site}/signin?confirmed=1`,
         },
       });
-      const templates = (await upStore.get({ key: 'email' })) || {};
+      // The wording (email system of 12 Oct, utils/account-emails.js) is written once per
+      // template version, so later edits in the admin panel survive restarts (review); the
+      // version moved to v2 so deployments with the v1 wording take the new emails once.
       // Sender and reply-to follow the environment on every boot (they change at cutover);
-      // the wording is written once, so later edits in the admin panel survive restarts
-      // (review). An unset EMAIL_FROM leaves the sender as it is.
-      const firstTime = !(await upStore.get({ key: 'alleyne-email-templates-v1' }));
-      // The confirm link goes to the website, which passes the code on (5 Oct 2026: the old
-      // link showed the backend's own address). Applied on every boot to whatever wording is
-      // saved, so admin-panel edits survive and the link follows SITE_URL at cutover.
-      const siteConfirmLink = (t) => {
-        const msg = t && t.options && t.options.message;
-        if (typeof msg !== 'string') return t;
-        // Either quote style, with or without spaces inside <%= %> (an admin-panel edit).
-        const next = msg.replace(/href=(["'])[^"']*\?confirmation=<%=\s*CODE\s*%>\1/g, `href="${site}/confirm-email?confirmation=<%= CODE %>"`);
-        return { ...t, options: { ...t.options, message: next } };
-      };
-      const tpl = (key, object, message) => {
-        const current = (templates[key] || {}).options || {};
-        return {
-          ...(templates[key] || {}),
-          options: {
-            ...current,
-            ...(fromObj.email ? { from: fromObj } : {}),
-            response_email: process.env.EMAIL_REPLY_TO || current.response_email || 'info@jalbarbados.com',
-            ...(firstTime ? { object, message } : {}),
-          },
-        };
-      };
-      await upStore.set({
-        key: 'email',
-        value: {
-          ...templates,
-          reset_password: tpl(
-            'reset_password',
-            'Reset your Alleyne Real Estate password',
-            '<p>Hello,</p><p>We received a request to reset the password for your Alleyne Real Estate account.</p>' +
-              '<p><a href="<%= URL %>?code=<%= TOKEN %>">Choose a new password</a></p>' +
-              '<p>If you did not ask for this, you can ignore this email; your password stays the same.</p><p>Alleyne Real Estate</p>'
-          ),
-          email_confirmation: siteConfirmLink(tpl(
-            'email_confirmation',
-            'Confirm your email for Alleyne Real Estate',
-            '<p>Hello,</p><p>Please confirm your email address to finish creating your Alleyne Real Estate account.</p>' +
-              `<p><a href="${site}/confirm-email?confirmation=<%= CODE %>">Confirm my email</a></p>` +
-              '<p>If you did not create an account, you can ignore this email.</p><p>Alleyne Real Estate</p>'
-          )),
-        },
+      // an unset EMAIL_FROM leaves the sender as it is. A new SITE_URL moves the saved wording
+      // to the new address, and the confirm link always goes to the website.
+      const next = nextEmailSettings({
+        templates: (await upStore.get({ key: 'email' })) || {},
+        written: (await upStore.get({ key: TEMPLATE_VERSION })) || null,
+        site,
+        from: fromObj,
+        replyTo: process.env.EMAIL_REPLY_TO,
       });
-      if (firstTime) await upStore.set({ key: 'alleyne-email-templates-v1', value: { at: new Date().toISOString() } });
+      await upStore.set({ key: 'email', value: next.email });
+      if (next.version) await upStore.set({ key: TEMPLATE_VERSION, value: next.version });
     } catch (err) {
       strapi.log.warn(`[bootstrap] account email settings skipped: ${err.message}`);
     }
