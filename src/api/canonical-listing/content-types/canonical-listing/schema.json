@@ -339,6 +339,18 @@
     "checkOutTime": {
       "type": "string"
     },
+    "space": {
+      "type": "text"
+    },
+    "notes": {
+      "type": "text"
+    },
+    "beds": {
+      "type": "integer"
+    },
+    "maxGuests": {
+      "type": "integer"
+    },
     "features": {
       "type": "relation",
       "relation": "oneToMany",
