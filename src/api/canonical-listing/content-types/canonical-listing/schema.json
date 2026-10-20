@@ -309,6 +309,17 @@
       "type": "boolean",
       "default": false
     },
+    "specialOffer": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "specialUntil": {
+      "type": "date"
+    },
+    "priceImproved": {
+      "type": "boolean",
+      "default": false
+    },
     "listedAt": {
       "type": "date"
     },
