@@ -28,4 +28,11 @@ jobs:
             -d "{\"clearCache\":\"do_not_clear\",\"commitId\":\"$GITHUB_SHA\"}" \
             "https://api.render.com/v1/services/$SERVICE_ID/deploys")
           echo "Render responded $status"
-          test "$status" = "201" || test "$status" = "200" || { cat response.json; exit 1; }
+          # Render answers this endpoint with 202 Accepted as well as 201, since the
+          # deploy is queued rather than finished when it replies. Accept any 2xx:
+          # enumerating codes is what broke this on 20 Oct 2026, when a successful
+          # deploy was reported as a failed workflow.
+          case "$status" in
+            2*) echo "Deploy queued."; cat response.json ;;
+            *)  cat response.json; exit 1 ;;
+          esac
