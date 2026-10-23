@@ -41,4 +41,29 @@ function toRevoke(held, revoked) {
   return (held || []).filter((p) => revoked.includes(p.action));
 }
 
-module.exports = { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, toRevoke };
+// Every action on the notes API, today's five and any added later.
+const LISTING_NOTE_PREFIX = 'api::listing-note.listing-note.';
+
+/**
+ * Every listing-note grant held by any users-permissions role: Public, Authenticated, the
+ * custom roles (Agent, AgencyOwner, AgencyStaff, Host, Moderator) and any role added later.
+ * A role's own JWT must never reach the notes; the website uses its server token, which is
+ * not a role (TEC-1909). Takes roles with their permissions populated; returns the rows to
+ * delete, each with the name of the role that held it.
+ */
+function listingNoteGrants(roles) {
+  return (roles || []).flatMap((role) =>
+    (role.permissions || [])
+      .filter((p) => typeof p.action === 'string' && p.action.startsWith(LISTING_NOTE_PREFIX))
+      .map((p) => ({ id: p.id, action: p.action, role: role.name ?? role.type ?? String(role.id) }))
+  );
+}
+
+module.exports = {
+  PUBLIC_PERMISSIONS,
+  PUBLIC_REVOKED,
+  LISTING_NOTE_ACTIONS,
+  LISTING_NOTE_PREFIX,
+  toRevoke,
+  listingNoteGrants,
+};

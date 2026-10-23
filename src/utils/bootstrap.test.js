@@ -20,9 +20,18 @@ function stubStrapi() {
       { id: 23, action: "plugin::users-permissions.auth.sendEmailConfirmation" },
       { id: 24, action: "api::listing-note.listing-note.findOne" },
     ] },
+    // Custom roles (TEC-1909): a notes grant ticked in the admin panel must go too.
+    agent: { id: 3, name: "Agent", permissions: [
+      { id: 31, action: "api::listing-note.listing-note.find" },
+      { id: 32, action: "api::canonical-listing.canonical-listing.find" },
+    ] },
+    moderator: { id: 4, name: "Moderator", permissions: [
+      { id: 41, action: "api::listing-note.listing-note.update" },
+    ] },
   };
   const query = (uid) => ({
     findOne: async ({ where } = {}) => (uid === "plugin::users-permissions.role" && where && roles[where.type]) || null,
+    findMany: async () => (uid === "plugin::users-permissions.role" ? Object.values(roles) : []),
     create: async ({ data }) => { created.push([uid, data.action ?? data.name, data.role]); return { id: 99 }; },
     delete: async ({ where }) => { deleted.push(where.id); return {}; },
   });
@@ -56,6 +65,10 @@ test("the backend starts: bootstrap runs to the end and applies the role changes
   // panel is removed on the next boot.
   assert.ok(deleted.includes(13));
   assert.ok(deleted.includes(24));
+  // Custom roles too (TEC-1909): Agent and Moderator lose their notes grants, nothing else.
+  assert.ok(deleted.includes(31));
+  assert.ok(deleted.includes(41));
+  assert.ok(!deleted.includes(32));
   // Missing public grants are created for the public role.
   const publicCreated = created.filter(([uid, , role]) => uid === "plugin::users-permissions.permission" && role === 2).map(([, a]) => a);
   assert.deepEqual(publicCreated.sort(), PUBLIC_PERMISSIONS.filter((a) => a !== "api::article.article.find").sort());

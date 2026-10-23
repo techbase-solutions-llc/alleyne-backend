@@ -1,7 +1,7 @@
 'use strict';
 
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
-const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, toRevoke } = require('./utils/role-permissions');
+const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, toRevoke, listingNoteGrants } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
 const { TEMPLATE_VERSION, nextEmailSettings } = require('./utils/account-emails');
 
@@ -293,6 +293,24 @@ module.exports = {
           data: { name: roleSpec.name, description: roleSpec.description, type: roleSpec.name.toLowerCase() },
         });
       }
+    }
+
+    // ── Listing notes: no role at all (TEC-1909) ──────────────────────────────
+    // The Public and Authenticated lists above only cover those two roles. A notes box ticked
+    // for Agent, AgencyOwner, AgencyStaff, Host, Moderator or any later role would let that
+    // role read every office note with its own JWT, so every role is checked on every boot.
+    // The website reaches the notes with its server token, which is not a role. Rows are
+    // re-read here, so a grant already removed above is not deleted twice.
+    const allRoles = await strapi
+      .query('plugin::users-permissions.role')
+      .findMany({ populate: ['permissions'] });
+    const noteGrants = listingNoteGrants(allRoles);
+    if (noteGrants.length > 0) {
+      strapi.log.warn(
+        `[bootstrap] Revoking ${noteGrants.length} listing-note permission(s): ` +
+          noteGrants.map((p) => `${p.role} ${p.action}`).join(', ')
+      );
+      await Promise.all(noteGrants.map((p) => strapi.query('plugin::users-permissions.permission').delete({ where: { id: p.id } })));
     }
 
     // ── Admin-panel account from settings (TEC-1344) ──────────────────────────

@@ -29,3 +29,40 @@ test("no role reads or writes listing notes: the website's server token only (se
     assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
   }
 });
+
+test("every role's listing-note grants are found, custom and future roles included (TEC-1909)", () => {
+  const { listingNoteGrants } = require("./role-permissions");
+  const roles = [
+    { id: 1, type: "authenticated", name: "Authenticated", permissions: [
+      { id: 11, action: "api::favorite.favorite.find" },
+      { id: 12, action: "api::listing-note.listing-note.find" },
+    ] },
+    { id: 2, type: "public", name: "Public", permissions: [{ id: 21, action: "api::article.article.find" }] },
+    { id: 3, type: "agent", name: "Agent", permissions: [
+      { id: 31, action: "api::listing-note.listing-note.findOne" },
+      { id: 32, action: "api::canonical-listing.canonical-listing.find" },
+    ] },
+    { id: 4, type: "moderator", name: "Moderator", permissions: [
+      { id: 41, action: "api::listing-note.listing-note.update" },
+      { id: 42, action: "api::listing-note.listing-note.delete" },
+    ] },
+    // A role added later, and an action added to the notes API later: both are caught.
+    { id: 5, type: "valuer", name: "Valuer", permissions: [{ id: 51, action: "api::listing-note.listing-note.export" }] },
+    // Look-alike actions on other content types stay.
+    { id: 6, type: "host", name: "Host", permissions: [
+      { id: 61, action: "api::listing-note-archive.listing-note-archive.find" },
+      { id: 62, action: "api::listing.listing.find" },
+      { id: 63, action: null },
+    ] },
+  ];
+  assert.deepEqual(listingNoteGrants(roles).map((p) => p.id), [12, 31, 41, 42, 51]);
+  assert.equal(listingNoteGrants(roles).find((p) => p.id === 31).role, "Agent");
+});
+
+test("finding listing-note grants is safe when there are none", () => {
+  const { listingNoteGrants } = require("./role-permissions");
+  assert.deepEqual(listingNoteGrants([]), []);
+  assert.deepEqual(listingNoteGrants(undefined), []);
+  assert.deepEqual(listingNoteGrants(null), []);
+  assert.deepEqual(listingNoteGrants([{ id: 1, name: "Agent" }, { id: 2, name: "Host", permissions: [] }]), []);
+});
