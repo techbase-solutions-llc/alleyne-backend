@@ -1164,6 +1164,7 @@ export interface ApiCanonicalListingCanonicalListing
         'townhouse',
         'villa',
         'penthouse',
+        'plantation',
         'studio',
         'duplex',
         'office',
