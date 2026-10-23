@@ -15,6 +15,8 @@
 const { publicPatch, AVAILABLE, barbadosDate } = require('../../../../utils/first-public');
 // soldAt (Sold banner period) and privateToken (quiet listing link): TEC-1412.
 const { statusPatch } = require('../../../../utils/status-stamps');
+// A deleted listing takes its office notes with it (session 4 review; TEC-1909).
+const { notesToRemove, removeNotes } = require('../../../../utils/listing-note-cleanup');
 
 const UID = 'api::canonical-listing.canonical-listing';
 
@@ -63,5 +65,21 @@ module.exports = {
     for (const r of rows) {
       await strapi.db.query(UID).update({ where: { id: r.id }, data: r.listedAt ? { firstPublicAt: now } : { firstPublicAt: now, listedAt: barbadosDate(now) } });
     }
+  },
+
+  // Listing notes go with their listing (session 4 review, 23 Oct 2026; TEC-1909). Found
+  // before the delete, while the link still holds; removed after it, so a failed delete
+  // loses nothing. Strapi passes the same event.state to the before and after halves.
+  async beforeDelete(event) {
+    event.state.noteIds = await notesToRemove(strapi.db, event.params.where);
+  },
+  async afterDelete(event) {
+    await removeNotes(strapi.db, event.state.noteIds);
+  },
+  async beforeDeleteMany(event) {
+    event.state.noteIds = await notesToRemove(strapi.db, event.params.where);
+  },
+  async afterDeleteMany(event) {
+    await removeNotes(strapi.db, event.state.noteIds);
   },
 };
