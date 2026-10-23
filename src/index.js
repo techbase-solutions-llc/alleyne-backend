@@ -1,7 +1,7 @@
 'use strict';
 
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
-const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, toRevoke } = require('./utils/role-permissions');
+const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, toRevoke } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
 const { TEMPLATE_VERSION, nextEmailSettings } = require('./utils/account-emails');
 
@@ -236,6 +236,8 @@ module.exports = {
       'api::listing-availability.listing-availability.create',
       'api::listing-availability.listing-availability.update',
       'api::listing-availability.listing-availability.delete',
+      // The office's listing notes: server token only (session 4, TEC-1909).
+      ...LISTING_NOTE_ACTIONS,
     ];
     // Named authToRevoke: `toRevoke` is the helper from role-permissions, used for the
     // Public role below (a local of the same name stopped the backend starting; review).

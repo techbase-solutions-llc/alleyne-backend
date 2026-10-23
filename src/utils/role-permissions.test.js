@@ -20,3 +20,12 @@ test("every boot removes the revoked grants a role still holds, and nothing else
   assert.deepEqual(toRevoke([], PUBLIC_REVOKED), []);
   assert.deepEqual(toRevoke(undefined, PUBLIC_REVOKED), []);
 });
+
+test("no role reads or writes listing notes: the website's server token only (session 4, TEC-1909)", () => {
+  const { LISTING_NOTE_ACTIONS } = require("./role-permissions");
+  assert.deepEqual(LISTING_NOTE_ACTIONS, ["find", "findOne", "create", "update", "delete"].map((a) => `api::listing-note.listing-note.${a}`));
+  for (const a of LISTING_NOTE_ACTIONS) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+});

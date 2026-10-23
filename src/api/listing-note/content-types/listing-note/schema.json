@@ -1,0 +1,44 @@
+{
+  "kind": "collectionType",
+  "collectionName": "listing_notes",
+  "info": {
+    "singularName": "listing-note",
+    "pluralName": "listing-notes",
+    "displayName": "ListingNote",
+    "description": "The office's dated notes on a listing (session 4, TEC-1909). Staff only: no role holds it; the website reads and writes it with its server token after checking the staff member."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "listing": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::canonical-listing.canonical-listing",
+      "required": true
+    },
+    "noteType": {
+      "type": "enumeration",
+      "enum": [
+        "price_change",
+        "owner_discussion",
+        "other"
+      ],
+      "default": "other",
+      "required": true
+    },
+    "body": {
+      "type": "text",
+      "required": true,
+      "maxLength": 4000
+    },
+    "author": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "authorName": {
+      "type": "string"
+    }
+  }
+}

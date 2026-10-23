@@ -18,6 +18,13 @@ const PUBLIC_PERMISSIONS = [
   // Submissions inbox straight through the backend, with no check at all.)
 ];
 
+// The office's notes on listings (session 4, 21 Oct 2026; TEC-1909) are staff only. No role
+// holds them: the website reads and writes them with its server token after checking the
+// staff member, so a box ticked by mistake in the admin panel is removed on the next boot.
+const LISTING_NOTE_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].map(
+  (a) => `api::listing-note.listing-note.${a}`
+);
+
 // Public grants that earlier deploys created and that must no longer exist. The grant loop
 // only ever adds, so they are deleted on every boot; switching one off in the admin panel
 // did not stick before (review, 8 Oct 2026).
@@ -26,6 +33,7 @@ const PUBLIC_REVOKED = [
   // Resending the confirmation email goes through the site's server token, which has its own
   // per-address limit; the public grant let anyone email any unconfirmed address over and over.
   'plugin::users-permissions.auth.sendEmailConfirmation',
+  ...LISTING_NOTE_ACTIONS,
 ];
 
 /** The permission rows a role holds whose action is on the revoke list. */
@@ -33,4 +41,4 @@ function toRevoke(held, revoked) {
   return (held || []).filter((p) => revoked.includes(p.action));
 }
 
-module.exports = { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, toRevoke };
+module.exports = { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, toRevoke };

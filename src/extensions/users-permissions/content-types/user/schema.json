@@ -92,6 +92,13 @@
             "relation": "manyToOne",
             "target": "api::agency.agency",
             "inversedBy": "agents"
+        },
+        "marketingOptIn": {
+            "type": "boolean",
+            "default": false
+        },
+        "marketingOptInAt": {
+            "type": "datetime"
         }
     }
 }
