@@ -100,3 +100,16 @@ test("the transaction API is the core one, like the notes API", () => {
     assert.match(src, /api::listing-transaction\.listing-transaction/, part);
   }
 });
+
+// Public user area (26 Oct 2026, plan A1, A2 and A6; TEC-1909).
+test("an account keeps when its password last changed and when a reset was last asked for, never shown", () => {
+  const user = require(path.join(__dirname, "..", "extensions", "users-permissions", "content-types", "user", "schema.json")).attributes;
+  assert.deepEqual(user.passwordChangedAt, { type: "datetime", private: true, configurable: false });
+  assert.deepEqual(user.resetPasswordRequestedAt, { type: "datetime", private: true, configurable: false });
+});
+
+test("a saved property remembers the price and status the person was last told about", () => {
+  const a = schema("favorite").attributes;
+  assert.deepEqual(a.notifiedPriceMinor, { type: "biginteger" });
+  assert.deepEqual(a.notifiedStatus, { type: "string" });
+});

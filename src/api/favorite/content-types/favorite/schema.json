@@ -19,6 +19,12 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::canonical-listing.canonical-listing"
+    },
+    "notifiedPriceMinor": {
+      "type": "biginteger"
+    },
+    "notifiedStatus": {
+      "type": "string"
     }
   }
 }
