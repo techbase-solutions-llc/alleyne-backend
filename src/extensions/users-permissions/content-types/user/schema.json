@@ -100,6 +100,34 @@
         "marketingOptInAt": {
             "type": "datetime"
         },
+        "marketingConsentText": {
+            "type": "text",
+            "private": true
+        },
+        "marketingConsentVersion": {
+            "type": "string",
+            "private": true
+        },
+        "marketingConsentSource": {
+            "type": "enumeration",
+            "enum": [
+                "signup",
+                "profile"
+            ],
+            "private": true
+        },
+        "marketingOptOutAt": {
+            "type": "datetime",
+            "private": true
+        },
+        "marketingOptOutSource": {
+            "type": "enumeration",
+            "enum": [
+                "profile",
+                "unsubscribe"
+            ],
+            "private": true
+        },
         "passwordChangedAt": {
             "type": "datetime",
             "private": true,

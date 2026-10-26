@@ -42,6 +42,22 @@ test("an account records marketing consent, off unless given, with the moment it
   assert.deepEqual(user.marketingOptInAt, { type: "datetime" });
 });
 
+// The consent record (consent audit, 26 Oct 2026; TEC-1909): what the person agreed to, in
+// which wording, where, and when they withdrew it. Withdrawal no longer wipes the date given.
+// Private: never in an API answer (not even /users/me); the website's server token writes them
+// and the office reads them in the admin panel. Additive and optional.
+test("an account keeps the wording, version and place of its marketing consent, and when it was withdrawn", () => {
+  const user = require(path.join(__dirname, "..", "extensions", "users-permissions", "content-types", "user", "schema.json")).attributes;
+  assert.deepEqual(user.marketingConsentText, { type: "text", private: true });
+  assert.deepEqual(user.marketingConsentVersion, { type: "string", private: true });
+  assert.deepEqual(user.marketingConsentSource, { type: "enumeration", enum: ["signup", "profile"], private: true });
+  assert.deepEqual(user.marketingOptOutAt, { type: "datetime", private: true });
+  assert.deepEqual(user.marketingOptOutSource, { type: "enumeration", enum: ["profile", "unsubscribe"], private: true });
+  // The existing fields stay as they were.
+  assert.deepEqual(user.marketingOptIn, { type: "boolean", default: false });
+  assert.deepEqual(user.marketingOptInAt, { type: "datetime" });
+});
+
 // Sales back office fields (Orna, 23 Oct 2026; TEC-1909). All optional and additive.
 test("a listing keeps its owner, agents, sign, keys and Hostfully discounts for the office", () => {
   const a = schema("canonical-listing").attributes;
