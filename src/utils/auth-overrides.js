@@ -94,6 +94,16 @@ function wrapRegister(original, deps = {}) {
     const advanced = (await strapi.store({ type: 'plugin', name: 'users-permissions' }).get({ key: 'advanced' })) || {};
     if (!advanced.allow_register) return original.call(this, ctx, ...rest);
 
+    // A taken name first, whatever the email: checked after the email, "name taken" for a new
+    // address and "check your email" for a known one told a stranger which addresses had an
+    // account (review, 26 Oct). Exact, as Strapi's own uniqueness check is; hashed as a new
+    // account would be, so it takes as long.
+    const nameOwner = await strapi.db.query(USER).findOne({ where: { username: body.username }, select: ['id'] });
+    if (nameOwner) {
+      await hash(body.password);
+      throw new ApplicationError(NAME_TAKEN);
+    }
+
     // Exact, as Strapi's own lookups are (emails are stored in lower case). $eqi is SQL LIKE:
     // % and _ in the address would match other accounts and email them.
     const known = await strapi.db.query(USER).findOne({ where: { email }, select: ['id', 'email', 'username', 'confirmed', 'blocked'] });

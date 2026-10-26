@@ -1,6 +1,7 @@
 'use strict';
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const { isServerToken, tokenListPage } = require('../../../utils/favourite-token-list');
 
 // Signed-in users no longer read listings through the API (TEC-1343 review), so the
 // sanitizer would strip the listing from their own favourites. The listing is attached
@@ -27,13 +28,28 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
    */
   async find(ctx) {
     const user = ctx.state.user;
-    if (!user) return ctx.unauthorized();
-
     // Fixed order and bounded paging: a caller-chosen sort on the listing relation would
     // reveal the order of hidden listings (second review).
     const { pagination } = ctx.query;
     const pageSize = Math.min(Math.max(parseInt(pagination?.pageSize, 10) || 50, 1), 100);
     const page = Math.max(parseInt(pagination?.page, 10) || 1, 1);
+
+    // The website's server token: every saved property, ids and last told values only, for
+    // the daily saved-property alerts (TEC-1909, plan D3).
+    if (!user && isServerToken(ctx)) {
+      const [rows, total] = await Promise.all([
+        strapi.entityService.findMany('api::favorite.favorite', {
+          fields: ['notifiedPriceMinor', 'notifiedStatus'],
+          populate: { user: { fields: ['id'] }, listing: { fields: ['id'] } },
+          sort: { id: 'asc' },
+          start: (page - 1) * pageSize,
+          limit: pageSize,
+        }),
+        strapi.entityService.count('api::favorite.favorite'),
+      ]);
+      return tokenListPage(rows, { page, pageSize, total });
+    }
+    if (!user) return ctx.unauthorized();
 
     const [entities, total] = await Promise.all([
       strapi.entityService.findMany('api::favorite.favorite', {

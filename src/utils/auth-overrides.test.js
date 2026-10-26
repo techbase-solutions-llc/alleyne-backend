@@ -378,3 +378,17 @@ test('the known-address lookup is exact: % and _ in an address never match anoth
   assert.deepEqual(made, ['john_smith@example.com', 'j%@example.com', 'jo%@example.com']);
   assert.equal(strapi.sent.length, 0, 'nobody else is emailed');
 });
+
+// Review, 26 Oct: with the email checked first, a taken name told a stranger whether an address
+// had an account ("check your email" for a known address, "name taken" for a new one). The name is
+// now checked first, so a taken name gets the same answer whatever the email.
+test('a taken name is answered the same way whatever the email, before the email is looked at', async () => {
+  const strapi = fakeStrapi([{ id: 1, email: 'ann@example.com', username: 'Ann Lee', confirmed: true }, { id: 2, email: 'cat@example.com', username: 'Cat Day', confirmed: true }]);
+  let created = 0;
+  const register = wrapRegister(async () => { created++; }, { strapi, env, limiter: noticeLimiter(), now: () => NOW });
+  for (const email of ['new@example.com', 'cat@example.com', 'ann@example.com']) {
+    await assert.rejects(register(ctxOf({ username: 'Ann Lee', email, password: 'long enough' })), (e) => e.message === NAME_TAKEN, email);
+  }
+  assert.equal(created, 0);
+  assert.equal(strapi.sent.length, 0, 'no email to any of them');
+});

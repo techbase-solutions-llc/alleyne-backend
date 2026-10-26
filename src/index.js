@@ -1,4 +1,5 @@
 'use strict';
+const { emailConfirmationOn } = require('./utils/email-confirmation');
 
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
 const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
@@ -358,7 +359,8 @@ module.exports = {
           // allow_register is left as set in the admin panel (review: forcing it on every boot
           // meant registration could not be switched off in an emergency).
           email_reset_password: `${site}/reset-password`,
-          email_confirmation: process.env.EMAIL_CONFIRMATION === 'true',
+          // On unless the setting says false (review, 26 Oct).
+          email_confirmation: emailConfirmationOn(process.env),
           email_confirmation_redirection: `${site}/signin?confirmed=1`,
         },
       });
