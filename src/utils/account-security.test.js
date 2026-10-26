@@ -108,3 +108,16 @@ test('a name written as an email address is refused, so the name check cannot te
   assert.equal(registerProblem({ username: 'Ann @ home', password: '12345678', email: 'new@b.co' }), 'Enter your name, not an email address.');
   assert.equal(registerProblem({ username: "Ann O'Neil-Lee", password: '12345678', email: 'new@b.co' }), null);
 });
+
+// The website's name rule (alleyne-real-estate src/lib/profile.ts cleanName), so a direct
+// sign-up cannot put a link or a phone number where the name shows: the portal, the back
+// office and alert emails (plan A3: the site's checks cannot be skipped).
+test("sign-up holds the name to the website's rule: letters, spaces, full stops, apostrophes and hyphens", () => {
+  const NAME_RULE = 'Use letters for your name (spaces, full stops, apostrophes and hyphens are fine).';
+  for (const ok of ['Ann Lee', "Ann O'Neil-Lee", 'J. R. Smith', 'Zoë Ångström', 'Ann  Lee', 'Al']) {
+    assert.equal(registerProblem({ username: ok, password: '12345678', email: 'a@b.co' }), null, ok);
+  }
+  for (const bad of ['Visit spam.example', 'Call 246 555 1234', 'Ann2', 'http://x', '<b>Ann</b>', 'A', 'x'.repeat(61)]) {
+    assert.equal(registerProblem({ username: bad, password: '12345678', email: 'a@b.co' }), NAME_RULE, bad);
+  }
+});

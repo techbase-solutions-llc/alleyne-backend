@@ -348,3 +348,11 @@ test('a known address takes the same password-hashing step a new account takes',
   // Strapi hashes the new account's password itself; the known address hashes once here.
   assert.deepEqual(hashed, ['known one']);
 });
+
+test('Strapi gets the name with its spaces tidied, as the website sends it', async () => {
+  const strapi = fakeStrapi([]);
+  const seen = [];
+  const register = wrapRegister(async (ctx) => { seen.push(ctx.request.body.username); ctx.send({ user: { id: 7 } }); }, { strapi, env, limiter: noticeLimiter(), hash: async () => {} });
+  await register(ctxOf({ username: '  Ann   Lee ', email: 'ann@example.com', password: 'long enough' }));
+  assert.deepEqual(seen, ['Ann Lee']);
+});

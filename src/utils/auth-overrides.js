@@ -86,6 +86,7 @@ function wrapRegister(original, deps = {}) {
     const email = body.email.trim().toLowerCase();
     if (!yup.string().email().isValidSync(email)) throw new ValidationError('Enter your email address.');
     body.email = email;
+    body.username = sec.tidyName(body.username);
     // What a new sign-up waiting for its confirmation email looks like to anyone but the site.
     const reply = { user: { username: body.username, email, confirmed: false } };
 

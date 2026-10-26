@@ -52,6 +52,18 @@ function userUpdateStamps({ data, now = new Date() }) {
   return out;
 }
 
+// The website's name rule (alleyne-real-estate src/lib/profile.ts cleanName): the name shows in
+// the portal, the back office and alert emails, so it carries no link, digits or markup.
+const NAME = /^\p{L}\p{M}{0,2}(?:\p{L}\p{M}{0,2})*(?:[ .'’-]+\p{L}\p{M}{0,2}(?:\p{L}\p{M}{0,2})*)*\.?$/u;
+const DOT_WORD = /\.[\p{L}\p{M}]/u;
+const NAME_RULE = 'Use letters for your name (spaces, full stops, apostrophes and hyphens are fine).';
+/** The name with its spaces tidied, as the website sends it. */
+const tidyName = (name) => String(name).trim().replace(/\s+/g, ' ');
+function nameAllowed(raw) {
+  const name = tidyName(raw);
+  return name.length >= 2 && name.length <= 60 && NAME.test(name) && !DOT_WORD.test(name);
+}
+
 function passwordProblem(password) {
   return typeof password === 'string' && password.length >= PASSWORD_MIN ? null : `Password must be at least ${PASSWORD_MIN} characters.`;
 }
@@ -63,6 +75,7 @@ function registerProblem({ username, password, email }) {
   // Strapi counts an account whose email equals the new name as a clash, which would say
   // whether that address has an account (adversarial review, 26 Oct 2026).
   if (username.includes('@')) return 'Enter your name, not an email address.';
+  if (!nameAllowed(username)) return NAME_RULE;
   if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Enter your email address.';
   return passwordProblem(password);
 }
@@ -92,5 +105,5 @@ function noticeLimiter({ windowMs = 60 * 60 * 1000, maxKeys = 5000 } = {}) {
 
 module.exports = {
   RESET_CODE_MINUTES, RESET_EXPIRED_MESSAGE, PASSWORD_MIN, resetCodeExpired, tokenRevoked,
-  userUpdateStamps, registerProblem, passwordProblem, noticeLimiter,
+  userUpdateStamps, registerProblem, passwordProblem, noticeLimiter, tidyName, NAME_RULE,
 };
