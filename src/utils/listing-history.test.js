@@ -154,13 +154,14 @@ test('an update that touches neither status nor publishing writes no history', a
   assert.equal(history.length, 0);
 });
 
-test('creating a listing writes its first status, and publishing when published', async () => {
+// Review, 26 Oct: the website creates every listing with a fixed publishedAt (status decides what
+// shows), so a create recorded a false "Published" line on every new draft. Only the status counts.
+test('creating a listing writes its first status only', async () => {
   const { history } = stubStrapi({ ctx: { state: { auth: { strategy: { name: 'admin' } } }, request: { path: '/content-manager/x' } } });
   const at = '2026-10-26T12:00:00.000Z';
   await hooks().afterCreate({ params: { data: {} }, state: {}, result: { id: 9, status: 'active', publishedAt: at } });
   assert.deepEqual(history.map((h) => [h.listing, h.changedField, h.nextValueJson, h.changeSource]), [
     [9, 'status', 'active', 'admin'],
-    [9, 'publishedAt', at, 'admin'],
   ]);
 });
 

@@ -49,7 +49,10 @@ module.exports = {
 
   async afterCreate(event) {
     const row = event.result || {};
-    await recordHistory(historyChanges({ prev: null, next: { status: row.status, publishedAt: row.publishedAt ?? null } }), row.id);
+    // The first status only: the website creates every listing with a fixed publishedAt (status
+    // decides what shows), so a create would put a false "Published" line on every new draft
+    // (review, 26 Oct). Later publish changes are still recorded.
+    await recordHistory(historyChanges({ prev: null, next: { status: row.status } }), row.id);
   },
 
   async beforeUpdate(event) {
