@@ -13,12 +13,14 @@ function stubStrapi() {
       { id: 11, action: "api::favorite.favorite.find" },
       { id: 12, action: "api::lead.lead.find" },
       { id: 13, action: "api::listing-note.listing-note.find" },
+      { id: 14, action: "api::listing-transaction.listing-transaction.find" },
     ] },
     public: { id: 2, permissions: [
       { id: 21, action: "api::article.article.find" },
       { id: 22, action: "api::property-submission.property-submission.create" },
       { id: 23, action: "plugin::users-permissions.auth.sendEmailConfirmation" },
       { id: 24, action: "api::listing-note.listing-note.findOne" },
+      { id: 25, action: "api::listing-transaction.listing-transaction.create" },
     ] },
     // Custom roles (TEC-1909): a notes grant ticked in the admin panel must go too.
     agent: { id: 3, name: "Agent", permissions: [
@@ -27,6 +29,7 @@ function stubStrapi() {
     ] },
     moderator: { id: 4, name: "Moderator", permissions: [
       { id: 41, action: "api::listing-note.listing-note.update" },
+      { id: 42, action: "api::listing-transaction.listing-transaction.delete" },
     ] },
   };
   const query = (uid) => ({
@@ -69,6 +72,10 @@ test("the backend starts: bootstrap runs to the end and applies the role changes
   assert.ok(deleted.includes(31));
   assert.ok(deleted.includes(41));
   assert.ok(!deleted.includes(32));
+  // Listing transactions likewise (Orna, 23 Oct 2026; TEC-1909), for every role.
+  assert.ok(deleted.includes(14));
+  assert.ok(deleted.includes(25));
+  assert.ok(deleted.includes(42));
   // Missing public grants are created for the public role.
   const publicCreated = created.filter(([uid, , role]) => uid === "plugin::users-permissions.permission" && role === 2).map(([, a]) => a);
   assert.deepEqual(publicCreated.sort(), PUBLIC_PERMISSIONS.filter((a) => a !== "api::article.article.find").sort());

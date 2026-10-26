@@ -66,3 +66,39 @@ test("finding listing-note grants is safe when there are none", () => {
   assert.deepEqual(listingNoteGrants(null), []);
   assert.deepEqual(listingNoteGrants([{ id: 1, name: "Agent" }, { id: 2, name: "Host", permissions: [] }]), []);
 });
+
+// Listing transactions (Orna, 23 Oct 2026; TEC-1909): prices, purchasers and commission are
+// office only, held by no role, exactly as the notes are.
+test("no role reads or writes listing transactions: the website's server token only", () => {
+  const { LISTING_TRANSACTION_ACTIONS } = require("./role-permissions");
+  assert.deepEqual(LISTING_TRANSACTION_ACTIONS, ["find", "findOne", "create", "update", "delete"].map((a) => `api::listing-transaction.listing-transaction.${a}`));
+  for (const a of LISTING_TRANSACTION_ACTIONS) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+});
+
+test("every role's notes and transactions grants are found, and nothing else", () => {
+  const { officeOnlyGrants } = require("./role-permissions");
+  const roles = [
+    { id: 1, name: "Authenticated", permissions: [
+      { id: 11, action: "api::favorite.favorite.find" },
+      { id: 12, action: "api::listing-transaction.listing-transaction.find" },
+      { id: 13, action: "api::listing-note.listing-note.find" },
+    ] },
+    { id: 3, name: "Agent", permissions: [
+      { id: 31, action: "api::listing-transaction.listing-transaction.update" },
+      { id: 32, action: "api::canonical-listing.canonical-listing.find" },
+    ] },
+    // An action added later is caught; a look-alike content type is not.
+    { id: 5, name: "Valuer", permissions: [
+      { id: 51, action: "api::listing-transaction.listing-transaction.export" },
+      { id: 52, action: "api::listing-transaction-archive.listing-transaction-archive.find" },
+      { id: 53, action: undefined },
+    ] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [12, 13, 31, 51]);
+  assert.equal(officeOnlyGrants(roles).find((p) => p.id === 31).role, "Agent");
+  assert.deepEqual(officeOnlyGrants(undefined), []);
+  assert.deepEqual(officeOnlyGrants([{ id: 1, name: "Host" }]), []);
+});

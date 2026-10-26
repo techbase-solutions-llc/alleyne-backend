@@ -438,6 +438,33 @@
     },
     "seasons": {
       "type": "json"
+    },
+    "ownerName": {
+      "type": "string"
+    },
+    "ownerPhone": {
+      "type": "string"
+    },
+    "ownerEmail": {
+      "type": "string"
+    },
+    "listingAgents": {
+      "type": "json"
+    },
+    "coBrokeAgent": {
+      "type": "string"
+    },
+    "signInstalled": {
+      "type": "boolean"
+    },
+    "signInstalledOn": {
+      "type": "date"
+    },
+    "keysProvided": {
+      "type": "boolean"
+    },
+    "hostfullyDiscounts": {
+      "type": "json"
     }
   }
 }

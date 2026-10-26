@@ -25,6 +25,12 @@ const LISTING_NOTE_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].m
   (a) => `api::listing-note.listing-note.${a}`
 );
 
+// The office's transaction records (Orna, 23 Oct 2026; TEC-1909): purchasers, prices and
+// commission. Office only, exactly as the notes.
+const LISTING_TRANSACTION_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].map(
+  (a) => `api::listing-transaction.listing-transaction.${a}`
+);
+
 // Public grants that earlier deploys created and that must no longer exist. The grant loop
 // only ever adds, so they are deleted on every boot; switching one off in the admin panel
 // did not stick before (review, 8 Oct 2026).
@@ -34,6 +40,7 @@ const PUBLIC_REVOKED = [
   // per-address limit; the public grant let anyone email any unconfirmed address over and over.
   'plugin::users-permissions.auth.sendEmailConfirmation',
   ...LISTING_NOTE_ACTIONS,
+  ...LISTING_TRANSACTION_ACTIONS,
 ];
 
 /** The permission rows a role holds whose action is on the revoke list. */
@@ -52,9 +59,21 @@ const LISTING_NOTE_PREFIX = 'api::listing-note.listing-note.';
  * delete, each with the name of the role that held it.
  */
 function listingNoteGrants(roles) {
+  return grantsOn(roles, [LISTING_NOTE_PREFIX]);
+}
+
+// Every action on the transactions API, today's five and any added later.
+const LISTING_TRANSACTION_PREFIX = 'api::listing-transaction.listing-transaction.';
+
+/** As listingNoteGrants, for every office-only API: the notes and the transactions. */
+function officeOnlyGrants(roles) {
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX]);
+}
+
+function grantsOn(roles, prefixes) {
   return (roles || []).flatMap((role) =>
     (role.permissions || [])
-      .filter((p) => typeof p.action === 'string' && p.action.startsWith(LISTING_NOTE_PREFIX))
+      .filter((p) => typeof p.action === 'string' && prefixes.some((x) => p.action.startsWith(x)))
       .map((p) => ({ id: p.id, action: p.action, role: role.name ?? role.type ?? String(role.id) }))
   );
 }
@@ -64,6 +83,9 @@ module.exports = {
   PUBLIC_REVOKED,
   LISTING_NOTE_ACTIONS,
   LISTING_NOTE_PREFIX,
+  LISTING_TRANSACTION_ACTIONS,
+  LISTING_TRANSACTION_PREFIX,
   toRevoke,
   listingNoteGrants,
+  officeOnlyGrants,
 };

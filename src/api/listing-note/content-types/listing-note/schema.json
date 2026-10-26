@@ -22,6 +22,8 @@
       "enum": [
         "price_change",
         "owner_discussion",
+        "access",
+        "viewing",
         "other"
       ],
       "default": "other",

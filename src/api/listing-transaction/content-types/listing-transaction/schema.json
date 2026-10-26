@@ -1,0 +1,65 @@
+{
+  "kind": "collectionType",
+  "collectionName": "listing_transactions",
+  "info": {
+    "singularName": "listing-transaction",
+    "pluralName": "listing-transactions",
+    "displayName": "ListingTransaction",
+    "description": "The office's record of each sale or letting agreed on a listing (Orna, 23 Oct 2026; TEC-1909). Staff only: no role holds it; the website reads and writes it with its server token after checking the staff member."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "listing": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::canonical-listing.canonical-listing",
+      "required": true
+    },
+    "dateAgreed": {
+      "type": "date"
+    },
+    "purchaserName": {
+      "type": "string"
+    },
+    "purchaserAgent": {
+      "type": "string"
+    },
+    "priceMinor": {
+      "type": "biginteger"
+    },
+    "currency": {
+      "type": "enumeration",
+      "enum": [
+        "BBD",
+        "USD",
+        "EUR",
+        "GBP"
+      ]
+    },
+    "purchaserAttorney": {
+      "type": "string"
+    },
+    "vendorAttorney": {
+      "type": "string"
+    },
+    "closeDate": {
+      "type": "date"
+    },
+    "coBrokeAgent": {
+      "type": "string"
+    },
+    "commissionPercent": {
+      "type": "decimal"
+    },
+    "author": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "authorName": {
+      "type": "string"
+    }
+  }
+}
