@@ -17,8 +17,23 @@ const { publicPatch, AVAILABLE, barbadosDate } = require('../../../../utils/firs
 const { statusPatch } = require('../../../../utils/status-stamps');
 // A deleted listing takes its office notes and transactions with it (TEC-1909).
 const { officeRecordsToRemove, removeOfficeRecords } = require('../../../../utils/listing-note-cleanup');
+// The listing timeline: a listing-history row per status or publish change (TEC-1909).
+const { historyChanges, historyRows, changeSourceFor, writeHistory } = require('../../../../utils/listing-history');
 
 const UID = 'api::canonical-listing.canonical-listing';
+
+// Writes the timeline rows after a save. Never throws: a lost history row must not fail
+// the listing save, so any failure is logged instead.
+async function recordHistory(changes, listingId) {
+  try {
+    if (!changes || !changes.length) return;
+    const source = changeSourceFor(strapi.requestContext?.get?.());
+    const rows = historyRows({ changes, listingId, now: new Date().toISOString(), source });
+    await writeHistory(strapi.db, rows, strapi.log);
+  } catch (err) {
+    strapi.log?.error?.(`[listing-history] skipped on listing ${listingId}: ${err.message}`);
+  }
+}
 
 module.exports = {
   beforeCreate(event) {
@@ -32,22 +47,43 @@ module.exports = {
     event.params.data = data;
   },
 
+  async afterCreate(event) {
+    const row = event.result || {};
+    await recordHistory(historyChanges({ prev: null, next: { status: row.status, publishedAt: row.publishedAt ?? null } }), row.id);
+  },
+
   async beforeUpdate(event) {
     const data = event.params.data || {};
     if (data.status === undefined && data.publishedAt === undefined && !('privateToken' in data) && !('soldAt' in data)) return;
-    const prev = await strapi.db.query(UID).findOne({ where: event.params.where, select: ['status', 'publishedAt', 'listedAt', 'firstPublicAt', 'soldAt', 'privateToken'] });
+    const prev = await strapi.db.query(UID).findOne({ where: event.params.where, select: ['id', 'status', 'publishedAt', 'listedAt', 'firstPublicAt', 'soldAt', 'privateToken'] });
     if (!prev) return;
+    // Worked out before the save, written after it (Strapi passes event.state along).
+    event.state.history = { changes: historyChanges({ prev, next: data }), listingId: prev.id };
     const now = new Date().toISOString();
     Object.assign(data, publicPatch({ prev, next: data, now }), statusPatch({ prev, next: data, now }));
     event.params.data = data;
   },
 
+  async afterUpdate(event) {
+    const h = event.state?.history;
+    if (!h) return;
+    await recordHistory(h.changes, event.result?.id ?? h.listingId);
+  },
+
   // Status and its stamps must go through beforeUpdate one row at a time; no bulk path
   // sets them today, and any future one must fail loudly rather than skip the stamps.
-  beforeUpdateMany(event) {
+  async beforeUpdateMany(event) {
     const data = event.params.data || {};
     if (data.status !== undefined || "privateToken" in data || "soldAt" in data) {
       throw new Error("Listing status can only be changed one listing at a time.");
+    }
+    // The admin panel's bulk publish and unpublish: note each row's publish time before
+    // the save, for the timeline. A failed read only loses the history, never the save.
+    if (data.publishedAt === undefined) return;
+    try {
+      event.state.bulkPrev = await strapi.db.query(UID).findMany({ where: event.params.where || {}, select: ['id', 'publishedAt'] });
+    } catch (err) {
+      strapi.log?.error?.(`[listing-history] bulk publish not recorded: ${err.message}`);
     }
   },
 
@@ -57,6 +93,9 @@ module.exports = {
   async afterUpdateMany(event) {
     const data = event.params.data || {};
     if (data.status === undefined && data.publishedAt === undefined) return;
+    for (const prev of event.state?.bulkPrev || []) {
+      await recordHistory(historyChanges({ prev, next: { publishedAt: data.publishedAt } }), prev.id);
+    }
     const now = new Date().toISOString();
     const rows = await strapi.db.query(UID).findMany({
       where: { $and: [event.params.where || {}, { firstPublicAt: null, publishedAt: { $notNull: true }, status: { $in: [...AVAILABLE] } }] },
