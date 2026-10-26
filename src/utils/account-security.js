@@ -57,9 +57,12 @@ function passwordProblem(password) {
 }
 
 /** The first thing wrong with a sign-up, or null. The site sends the person's name as
-    username. */
+    username (letters, spaces and . ' - only, cleanName in the site's auth actions). */
 function registerProblem({ username, password, email }) {
   if (typeof username !== 'string' || !username.trim()) return 'Enter your name.';
+  // Strapi counts an account whose email equals the new name as a clash, which would say
+  // whether that address has an account (adversarial review, 26 Oct 2026).
+  if (username.includes('@')) return 'Enter your name, not an email address.';
   if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Enter your email address.';
   return passwordProblem(password);
 }

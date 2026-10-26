@@ -293,3 +293,58 @@ test("deleting an account takes its saved properties and searches, after the acc
   await life.afterDeleteMany(many);
   assert.equal(strapi.removed.length, 4);
 });
+
+// ── Adversarial review, 26 Oct 2026: no answer may differ between a new and a known address ──
+
+test('Strapi checks the same address the known-address lookup used: trimmed and in lower case', async () => {
+  const strapi = fakeStrapi([{ id: 1, email: 'ann@example.com', confirmed: true }]);
+  const seen = [];
+  const register = wrapRegister(async (ctx) => { seen.push(ctx.request.body.email); ctx.send({ user: { id: 7 } }); }, { strapi, env, limiter: noticeLimiter(), now: () => NOW, hash: async () => {} });
+  const fresh = ctxOf({ username: 'Bo Ray', email: '  Bo@Example.com ', password: 'long enough' });
+  const known = ctxOf({ username: 'Bo Ray', email: '  ANN@example.com ', password: 'long enough' });
+  await register(fresh);
+  await register(known);
+  assert.deepEqual(seen, ['bo@example.com'], "Strapi's own email check would refuse the spaces a known address got past");
+  assert.deepEqual(fresh.body, { user: { username: 'Bo Ray', email: 'bo@example.com', confirmed: false } });
+  assert.deepEqual(known.body, { user: { username: 'Bo Ray', email: 'ann@example.com', confirmed: false } });
+});
+
+test("an address Strapi's own email check refuses is refused before the known-address lookup", async () => {
+  // a..b@example.com passes a simple pattern but not Strapi's; were it stored, a known
+  // address would have succeeded where a new one failed.
+  const strapi = fakeStrapi([{ id: 1, email: 'a..b@example.com', confirmed: true }]);
+  let called = 0;
+  const register = wrapRegister(async () => { called++; }, { strapi, env, limiter: noticeLimiter(), hash: async () => {} });
+  for (const email of ['a..b@example.com', 'c..d@example.com'])
+    await assert.rejects(register(ctxOf({ username: 'Ann', email, password: 'long enough' })), (e) => e.name === 'ValidationError' && e.message === 'Enter your email address.');
+  assert.equal(called, 0);
+  assert.equal(strapi.sent.length, 0);
+});
+
+test('a second sign-up with an address within the hour sends nothing, whether the first one made the account or not', async () => {
+  // Before: the first try at a new address made the account without touching the limiter,
+  // so a second try sent its confirmation again (slow), while a second try at an address
+  // that already had an account sent nothing (fast).
+  const users = [{ id: 1, email: 'ann@example.com', confirmed: false }];
+  const strapi = fakeStrapi(users);
+  const original = async (ctx) => {
+    users.push({ id: 7, email: ctx.request.body.email, confirmed: false });
+    ctx.send({ user: { id: 7, username: ctx.request.body.username, email: ctx.request.body.email, confirmed: false } });
+  };
+  const register = wrapRegister(original, { strapi, env, limiter: noticeLimiter(), now: () => NOW, hash: async () => {} });
+  for (const email of ['ann@example.com', 'bo@example.com']) {
+    await register(ctxOf({ username: 'Bo Ray', email, password: 'long enough' }));
+    await register(ctxOf({ username: 'Bo Ray', email, password: 'long enough' }));
+  }
+  assert.deepEqual(strapi.confirmations, ['ann@example.com'], 'the new address got its one email from Strapi, the known one from the backend');
+});
+
+test('a known address takes the same password-hashing step a new account takes', async () => {
+  const strapi = fakeStrapi([{ id: 1, email: 'ann@example.com', confirmed: true }]);
+  const hashed = [];
+  const register = wrapRegister(async (ctx) => { ctx.send({ user: { id: 7 } }); }, { strapi, env, limiter: noticeLimiter(), hash: async (p) => { hashed.push(p); } });
+  await register(ctxOf({ username: 'Bo Ray', email: 'bo@example.com', password: 'new account' }));
+  await register(ctxOf({ username: 'Bo Ray', email: 'ann@example.com', password: 'known one' }));
+  // Strapi hashes the new account's password itself; the known address hashes once here.
+  assert.deepEqual(hashed, ['known one']);
+});

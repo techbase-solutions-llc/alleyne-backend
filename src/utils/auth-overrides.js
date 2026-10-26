@@ -13,7 +13,8 @@
 //   email is confirmed (D4, backend side).
 // - A deleted account takes its saved properties and searches with it (A5).
 
-const { errors } = require('@strapi/utils');
+const { errors, yup } = require('@strapi/utils');
+const bcrypt = require('bcryptjs');
 const sec = require('./account-security');
 const { noticeEmail, siteUrl } = require('./account-emails');
 const { INVITE_PREFIX, tokenOnly } = require('./invite-code');
@@ -71,12 +72,20 @@ function withTokenRevocation(makeJwt) {
 function wrapRegister(original, deps = {}) {
   const limiter = deps.limiter || sec.noticeLimiter();
   const now = deps.now || Date.now;
+  // Strapi hashes a new account's password (10 rounds); a known address does the same work,
+  // so the two take about as long (adversarial review, 26 Oct 2026).
+  const hash = deps.hash || ((password) => bcrypt.hash(password, 10));
   return async function register(ctx, ...rest) {
     const strapi = strapiOf(deps);
     const body = (ctx.request && ctx.request.body) || {};
     const problem = sec.registerProblem(body);
     if (problem) throw new ValidationError(problem);
+    // Both paths use the same address, and Strapi's own email check runs first: otherwise an
+    // address with spaces round it, or one only the simple pattern allows, succeeded when
+    // known and failed when new (adversarial review, 26 Oct 2026).
     const email = body.email.trim().toLowerCase();
+    if (!yup.string().email().isValidSync(email)) throw new ValidationError('Enter your email address.');
+    body.email = email;
     // What a new sign-up waiting for its confirmation email looks like to anyone but the site.
     const reply = { user: { username: body.username, email, confirmed: false } };
 
@@ -86,6 +95,7 @@ function wrapRegister(original, deps = {}) {
 
     const known = await strapi.db.query(USER).findOne({ where: { email: { $eqi: email } }, select: ['id', 'email', 'username', 'confirmed', 'blocked'] });
     if (known) {
+      await hash(body.password);
       // Awaited, as Strapi awaits a new account's confirmation email, so both take as long.
       if (!known.blocked && limiter.allow(email, now())) {
         if (known.confirmed) await sendAccountNotice(strapi, 'account_exists', known.email, { env: deps.env });
@@ -107,6 +117,9 @@ function wrapRegister(original, deps = {}) {
       if (/already taken/i.test(err && err.message)) throw new ApplicationError(NAME_TAKEN);
       throw err;
     }
+    // The address now has an account: a second try within the hour sends nothing, as for an
+    // address that had one already (adversarial review, 26 Oct 2026).
+    limiter.allow(email, now());
     // Only the website's server token learns the new account's id (it records marketing
     // consent with it). Anyone else sees the same answer as for a known address.
     if (!tokenOnly(ctx) && ctx.body && ctx.body.user && !ctx.body.jwt) ctx.body = reply;

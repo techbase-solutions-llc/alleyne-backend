@@ -99,3 +99,12 @@ test('the notice limiter forgets old addresses so it cannot grow without end', (
   for (let i = 0; i < 10; i++) limiter.allow(`a${i}@x.co`, T0 + i * 2000);
   assert.ok(limiter.size() <= 3);
 });
+
+// Adversarial review, 26 Oct 2026 (TEC-1909): Strapi's register also counts an account whose
+// email equals the new username as a clash, so a name written as an email address told a
+// caller whether that address had an account ("name already used" or success).
+test('a name written as an email address is refused, so the name check cannot test an address', () => {
+  assert.equal(registerProblem({ username: 'ann@example.com', password: '12345678', email: 'new@b.co' }), 'Enter your name, not an email address.');
+  assert.equal(registerProblem({ username: 'Ann @ home', password: '12345678', email: 'new@b.co' }), 'Enter your name, not an email address.');
+  assert.equal(registerProblem({ username: "Ann O'Neil-Lee", password: '12345678', email: 'new@b.co' }), null);
+});
