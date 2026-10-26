@@ -2,7 +2,8 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { TEMPLATE_VERSION, accountTemplates, moveSite, nextEmailSettings, siteConfirmLink } = require('./account-emails');
+const { TEMPLATE_VERSION, accountTemplates, moveSite, nextEmailSettings, siteConfirmLink, noticeEmail, siteUrl } = require('./account-emails');
+const { htmlToText } = require('./email-text');
 
 const SITE = 'https://www.example.com';
 const FROM = { name: 'Alleyne Real Estate', email: 'info@jalbarbados.com' };
@@ -24,7 +25,9 @@ test('the templates carry Strapi\'s placeholders and the site address, nothing e
     assert.ok(!/—/.test(m), 'no em dashes');
     assert.ok(!/1 hour|alleyne\.bb/.test(m));
   }
-  assert.match(reset, /The link works only once\./);
+  // Reset links expire after 60 minutes (plan A1, 26 Oct 2026).
+  assert.match(reset, /The link works once, within 60 minutes\./);
+  assert.ok(!/only once/.test(reset));
 });
 
 test('first boot of this version writes the wording; later boots keep admin-panel edits', () => {
@@ -33,7 +36,7 @@ test('first boot of this version writes the wording; later boots keep admin-pane
   assert.equal(first.email.reset_password.options.from, FROM);
   assert.equal(first.email.reset_password.options.response_email, 'info@jalbarbados.com');
   assert.deepEqual(first.version, { at: '2026-10-12T12:00:00.000Z', site: SITE });
-  assert.equal(TEMPLATE_VERSION, 'alleyne-email-templates-v2');
+  assert.equal(TEMPLATE_VERSION, 'alleyne-email-templates-v3');
 
   const edited = { ...first.email, reset_password: { options: { ...first.email.reset_password.options, message: 'Edited in the admin panel <%= URL %>?code=<%= TOKEN %>' } } };
   const later = nextEmailSettings({ templates: edited, written: first.version, site: SITE, from: { name: '', email: '' }, replyTo: 'help@x.co' });
@@ -74,4 +77,85 @@ test('moving to a www address changes the site and its host once, never an email
     moveSite(msg, 'https://jalbarbados.com', 'https://www.jalbarbados.com'),
     '<a href="https://www.jalbarbados.com/x">www.jalbarbados.com</a> write to info@jalbarbados.com'
   );
+});
+
+// Plain text (plan A4, 26 Oct 2026): Strapi sent the HTML as the text part too.
+test('the reset and confirm emails read properly as plain text once Strapi has filled them', () => {
+  const t = accountTemplates(SITE);
+  const reset = t.reset_password.message.split('<%= URL %>').join(`${SITE}/reset-password`).split('<%= TOKEN %>').join('abc123');
+  assert.equal(htmlToText(reset), [
+    'Your account',
+    '',
+    'RESET YOUR PASSWORD',
+    '',
+    'We had a request to reset the password for your Alleyne account. Press the button to choose a new one.',
+    '',
+    'Choose a new password: https://www.example.com/reset-password?code=abc123',
+    '',
+    'If the button does not work, copy this link into your browser:',
+    'https://www.example.com/reset-password?code=abc123',
+    '',
+    'Did not ask for this? Ignore this email and your password stays the same. If it keeps happening, write to info@jalbarbados.com.',
+    '',
+    'The link works once, within 60 minutes.',
+    '',
+    '--',
+    'Alleyne Real Estate · Chattel Village, Holetown, St James, Barbados',
+    '1 (246) 432-1159 · www.example.com',
+    'You got this because someone asked to reset the password for this address on www.example.com.',
+    '',
+  ].join('\n'));
+  const confirm = htmlToText(t.email_confirmation.message.split('<%= CODE %>').join('xyz'));
+  assert.match(confirm, /^Your account\n\nCONFIRM YOUR EMAIL\n\nWelcome to Alleyne Real Estate\./);
+  assert.match(confirm, /\nConfirm my email: https:\/\/www\.example\.com\/confirm-email\?confirmation=xyz\n/);
+  assert.ok(!/<|>|&amp;/.test(confirm), 'no markup left');
+});
+
+// Account notices the backend sends itself (plan D4 backend side, 26 Oct 2026).
+const notices = ['password_changed', 'welcome', 'account_exists'];
+
+test('each account notice has a subject, HTML in the account email layout and its own plain text', () => {
+  for (const kind of notices) {
+    const e = noticeEmail(kind, { site: `${SITE}/`, when: new Date('2026-10-26T18:15:00Z') });
+    assert.ok(e.subject && e.subject.includes('Alleyne Real Estate'), kind);
+    assert.match(e.html, /^<!DOCTYPE html>/);
+    assert.match(e.html, /<img src="https:\/\/www\.example\.com\/brand\/alleyne-wordmark-email\.png" width="200" height="40" alt="Alleyne Real Estate"/);
+    assert.match(e.html, /Chattel Village, Holetown, St James, Barbados/);
+    assert.match(e.html, /href="https:\/\/www\.example\.com\/signin"/, `${kind} links to sign in on the site`);
+    assert.equal(htmlToText(e.html), e.text, `${kind}: the text part is the HTML's own words`);
+    for (const m of [e.html, e.text, e.subject]) {
+      assert.ok(!/—/.test(m), `${kind}: no em dashes`);
+      assert.ok(!/techbase/i.test(m), `${kind}: never names Techbase`);
+      assert.ok(!/__SITE__|__HOST__|<%|\$\{|undefined|null/.test(m), `${kind}: nothing left unfilled`);
+    }
+    assert.match(e.text, /\n--\nAlleyne Real Estate · Chattel Village, Holetown, St James, Barbados\n1 \(246\) 432-1159 · www\.example\.com\nYou got this because /);
+  }
+});
+
+test('the password-changed notice says when, in Barbados time, and how to get the account back', () => {
+  const e = noticeEmail('password_changed', { site: SITE, when: new Date('2026-10-26T18:15:00Z') });
+  assert.equal(e.subject, 'Your Alleyne Real Estate password was changed');
+  assert.match(e.text, /YOUR PASSWORD WAS CHANGED/);
+  assert.match(e.text, /26 October 2026 at 2:15 ?pm \(Barbados time\)/);
+  assert.match(e.text, /signed in anywhere else/);
+  assert.match(e.text, /Sign in: https:\/\/www\.example\.com\/signin/);
+  assert.match(e.html, /href="https:\/\/www\.example\.com\/forgot-password"/);
+  assert.match(e.text, /https:\/\/www\.example\.com\/forgot-password/);
+});
+
+test('the welcome email follows a confirmed email; the already-registered one changes nothing', () => {
+  const w = noticeEmail('welcome', { site: SITE });
+  assert.equal(w.subject, 'Welcome to Alleyne Real Estate');
+  assert.match(w.text, /YOUR ACCOUNT IS READY/);
+  const x = noticeEmail('account_exists', { site: SITE });
+  assert.equal(x.subject, 'You already have an Alleyne Real Estate account');
+  assert.match(x.text, /no new one was made/);
+  assert.match(x.text, /https:\/\/www\.example\.com\/forgot-password/);
+  assert.match(x.text, /Nothing has changed on your account\./);
+  assert.throws(() => noticeEmail('nonsense', { site: SITE }));
+});
+
+test('the site address comes from SITE_URL, without a trailing slash, with the preview address as fallback', () => {
+  assert.equal(siteUrl({ SITE_URL: 'https://www.jalbarbados.com/' }), 'https://www.jalbarbados.com');
+  assert.equal(siteUrl({}), 'https://alleyne-real-estate.vercel.app');
 });
