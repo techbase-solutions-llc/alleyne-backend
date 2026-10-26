@@ -9,6 +9,8 @@
 const LISTING = 'api::canonical-listing.canonical-listing';
 const NOTE = 'api::listing-note.listing-note';
 const TRANSACTION = 'api::listing-transaction.listing-transaction';
+// Its timeline rows go too (review, 26 Oct 2026): left behind, they were linked to nothing.
+const HISTORY = 'api::listing-history.listing-history';
 
 async function listingIds(db, where) {
   const listings = await db.query(LISTING).findMany({ where, select: ['id'] });
@@ -37,10 +39,14 @@ async function removeNotes(db, ids) {
   return removeIds(db, NOTE, ids);
 }
 
-/** The ids of the notes and transactions on every listing the delete's `where` matches. */
+/** The ids of the notes, transactions and timeline rows on every listing the delete's `where` matches. */
 async function officeRecordsToRemove(db, where) {
   const ids = await listingIds(db, where);
-  return { notes: await linkedIds(db, NOTE, ids), transactions: await linkedIds(db, TRANSACTION, ids) };
+  return {
+    notes: await linkedIds(db, NOTE, ids),
+    transactions: await linkedIds(db, TRANSACTION, ids),
+    history: await linkedIds(db, HISTORY, ids),
+  };
 }
 
 /** Deletes those records; returns how many of each went. */
@@ -48,6 +54,7 @@ async function removeOfficeRecords(db, found) {
   return {
     notes: await removeIds(db, NOTE, found?.notes),
     transactions: await removeIds(db, TRANSACTION, found?.transactions),
+    history: await removeIds(db, HISTORY, found?.history),
   };
 }
 

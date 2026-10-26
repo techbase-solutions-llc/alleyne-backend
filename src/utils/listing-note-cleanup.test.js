@@ -10,12 +10,14 @@ const path = require('node:path');
 const LISTING = 'api::canonical-listing.canonical-listing';
 const NOTE = 'api::listing-note.listing-note';
 const TRANSACTION = 'api::listing-transaction.listing-transaction';
+const HISTORY = 'api::listing-history.listing-history';
 
 // A small stand-in for strapi.db: listings 1 and 2, notes on each, and the calls it saw.
 function fakeDb() {
   const listings = [{ id: 1 }, { id: 2 }];
   const notes = [{ id: 10, listing: 1 }, { id: 11, listing: 1 }, { id: 12, listing: 2 }];
   const transactions = [{ id: 20, listing: 1 }, { id: 21, listing: 2 }, { id: 22, listing: 2 }];
+  const history = [{ id: 30, listing: 1 }, { id: 31, listing: 2 }];
   const calls = [];
   const matchListing = (where) => {
     if (where?.id?.$in) return listings.filter((l) => where.id.$in.includes(l.id));
@@ -26,6 +28,7 @@ function fakeDb() {
     calls,
     notes,
     transactions,
+    history,
     query(uid) {
       if (uid === LISTING) return { findMany: async ({ where }) => matchListing(where).map(({ id }) => ({ id })) };
       if (uid === NOTE) return {
@@ -43,6 +46,15 @@ function fakeDb() {
           calls.push(['deleteMany transactions', where.id.$in]);
           let count = 0;
           for (let i = transactions.length - 1; i >= 0; i--) if (where.id.$in.includes(transactions[i].id)) { transactions.splice(i, 1); count++; }
+          return { count };
+        },
+      };
+      if (uid === HISTORY) return {
+        findMany: async ({ where }) => history.filter((h) => where.listing.id.$in.includes(h.listing)).map(({ id }) => ({ id })),
+        deleteMany: async ({ where }) => {
+          calls.push(['deleteMany history', where.id.$in]);
+          let count = 0;
+          for (let i = history.length - 1; i >= 0; i--) if (where.id.$in.includes(history[i].id)) { history.splice(i, 1); count++; }
           return { count };
         },
       };
@@ -96,19 +108,20 @@ const { officeRecordsToRemove, removeOfficeRecords } = require('./listing-note-c
 
 test('the notes and transactions of the listings being deleted are found before the delete', async () => {
   const db = fakeDb();
-  assert.deepEqual(await officeRecordsToRemove(db, { id: 1 }), { notes: [10, 11], transactions: [20] });
-  assert.deepEqual(await officeRecordsToRemove(db, { id: { $in: [1, 2] } }), { notes: [10, 11, 12], transactions: [20, 21, 22] });
-  assert.deepEqual(await officeRecordsToRemove(db, { id: 99 }), { notes: [], transactions: [] });
+  assert.deepEqual(await officeRecordsToRemove(db, { id: 1 }), { notes: [10, 11], transactions: [20], history: [30] });
+  assert.deepEqual(await officeRecordsToRemove(db, { id: { $in: [1, 2] } }), { notes: [10, 11, 12], transactions: [20, 21, 22], history: [30, 31] });
+  assert.deepEqual(await officeRecordsToRemove(db, { id: 99 }), { notes: [], transactions: [], history: [] });
 });
 
 test('removing office records deletes exactly those, and sends nothing for an empty list', async () => {
   const db = fakeDb();
-  assert.deepEqual(await removeOfficeRecords(db, { notes: [12], transactions: [21, 22] }), { notes: 1, transactions: 2 });
+  assert.deepEqual(await removeOfficeRecords(db, { notes: [12], transactions: [21, 22], history: [31] }), { notes: 1, transactions: 2, history: 1 });
+  assert.deepEqual(db.history.map((h) => h.id), [30]);
   assert.deepEqual(db.notes.map((n) => n.id), [10, 11]);
   assert.deepEqual(db.transactions.map((t) => t.id), [20]);
-  assert.deepEqual(await removeOfficeRecords(db, { notes: [], transactions: [] }), { notes: 0, transactions: 0 });
-  assert.deepEqual(await removeOfficeRecords(db, undefined), { notes: 0, transactions: 0 });
-  assert.equal(db.calls.length, 2);
+  assert.deepEqual(await removeOfficeRecords(db, { notes: [], transactions: [], history: [] }), { notes: 0, transactions: 0, history: 0 });
+  assert.deepEqual(await removeOfficeRecords(db, undefined), { notes: 0, transactions: 0, history: 0 });
+  assert.equal(db.calls.length, 3);
 });
 
 test('deleting a listing (one, or many from the admin panel) removes its transactions afterwards', async () => {
@@ -126,4 +139,15 @@ test('deleting a listing (one, or many from the admin panel) removes its transac
   await hooks.afterDeleteMany(many);
   assert.deepEqual(db.transactions, []);
   assert.deepEqual(db.notes, []);
+});
+
+// The review of 26 Oct: a deleted listing left its timeline rows behind, linked to nothing.
+test('deleting a listing removes its timeline rows too', async () => {
+  const db = fakeDb();
+  const hooks = lifecycles(db);
+  const one = { params: { where: { id: 2 } }, state: {} };
+  await hooks.beforeDelete(one);
+  assert.deepEqual(db.history.map((h) => h.id), [30, 31], 'nothing goes before the listing does');
+  await hooks.afterDelete(one);
+  assert.deepEqual(db.history.map((h) => h.id), [30]);
 });
