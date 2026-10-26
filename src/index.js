@@ -3,7 +3,7 @@
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
 const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
-const { TEMPLATE_VERSION, nextEmailSettings } = require('./utils/account-emails');
+const { TEMPLATE_VERSION, nextEmailSettings, siteUrl } = require('./utils/account-emails');
 
 const AUTHENTICATED_PERMISSIONS = [
   // Signed-in users are the agency's clients (TEC-1343 review). Everything agents do
@@ -344,7 +344,7 @@ module.exports = {
     // wording is plain. SITE_URL changes at cutover. Email confirmation for new accounts is
     // switched by EMAIL_CONFIRMATION so the site can be ready before it is turned on.
     try {
-      const site = (process.env.SITE_URL || 'https://alleyne-real-estate.vercel.app').replace(/\/$/, '');
+      const site = siteUrl();
       const from = process.env.EMAIL_FROM || '';
       const m = from.match(/^(.*)<(.+)>$/);
       const fromObj = { name: (m ? m[1] : 'Alleyne Real Estate').trim() || 'Alleyne Real Estate', email: (m ? m[2] : from).trim() };
