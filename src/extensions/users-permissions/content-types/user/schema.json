@@ -98,7 +98,8 @@
             "default": false
         },
         "marketingOptInAt": {
-            "type": "datetime"
+            "type": "datetime",
+            "private": true
         },
         "marketingConsentText": {
             "type": "text",

@@ -39,7 +39,7 @@ test("a listing carries no link back to its notes, so reading a listing never br
 test("an account records marketing consent, off unless given, with the moment it was given", () => {
   const user = require(path.join(__dirname, "..", "extensions", "users-permissions", "content-types", "user", "schema.json")).attributes;
   assert.deepEqual(user.marketingOptIn, { type: "boolean", default: false });
-  assert.deepEqual(user.marketingOptInAt, { type: "datetime" });
+  assert.deepEqual(user.marketingOptInAt, { type: "datetime", private: true });
 });
 
 // The consent record (consent audit, 26 Oct 2026; TEC-1909): what the person agreed to, in
@@ -53,9 +53,9 @@ test("an account keeps the wording, version and place of its marketing consent, 
   assert.deepEqual(user.marketingConsentSource, { type: "enumeration", enum: ["signup", "profile"], private: true });
   assert.deepEqual(user.marketingOptOutAt, { type: "datetime", private: true });
   assert.deepEqual(user.marketingOptOutSource, { type: "enumeration", enum: ["profile", "unsubscribe"], private: true });
-  // The existing fields stay as they were.
+  // The date given is private too (end-to-end run, 26 Oct): no API answer needs it.
   assert.deepEqual(user.marketingOptIn, { type: "boolean", default: false });
-  assert.deepEqual(user.marketingOptInAt, { type: "datetime" });
+  assert.deepEqual(user.marketingOptInAt, { type: "datetime", private: true });
 });
 
 // Sales back office fields (Orna, 23 Oct 2026; TEC-1909). All optional and additive.
