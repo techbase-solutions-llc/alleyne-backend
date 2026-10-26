@@ -47,9 +47,13 @@ async function signInLimitKey(ctx, next) {
 async function emailForUsername(identifier) {
   const name = String(identifier ?? '').trim();
   if (!name || name.includes('@') || typeof strapi === 'undefined' || !strapi || !strapi.db) return null;
+  // $eqi is SQL LIKE: % and _ would match other accounts ("%" signed in against the first one;
+  // adversarial review, 26 Oct 2026). Names never contain them, so such a name is left as typed.
+  if (/[%_\\]/.test(name)) return null;
   try {
-    const user = await strapi.db.query('plugin::users-permissions.user').findOne({ where: { username: { $eqi: name } }, select: ['email'] });
-    return user && user.email ? user.email : null;
+    const user = await strapi.db.query('plugin::users-permissions.user').findOne({ where: { username: { $eqi: name } }, select: ['email', 'username'] });
+    if (!user || String(user.username || '').toLowerCase() !== name.toLowerCase()) return null;
+    return user.email || null;
   } catch {
     return null;
   }

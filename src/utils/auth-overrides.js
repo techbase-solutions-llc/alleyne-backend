@@ -94,7 +94,9 @@ function wrapRegister(original, deps = {}) {
     const advanced = (await strapi.store({ type: 'plugin', name: 'users-permissions' }).get({ key: 'advanced' })) || {};
     if (!advanced.allow_register) return original.call(this, ctx, ...rest);
 
-    const known = await strapi.db.query(USER).findOne({ where: { email: { $eqi: email } }, select: ['id', 'email', 'username', 'confirmed', 'blocked'] });
+    // Exact, as Strapi's own lookups are (emails are stored in lower case). $eqi is SQL LIKE:
+    // % and _ in the address would match other accounts and email them.
+    const known = await strapi.db.query(USER).findOne({ where: { email }, select: ['id', 'email', 'username', 'confirmed', 'blocked'] });
     if (known) {
       await hash(body.password);
       // Awaited, as Strapi awaits a new account's confirmation email, so both take as long.

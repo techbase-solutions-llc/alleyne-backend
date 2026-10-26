@@ -112,3 +112,25 @@ test("a username signs in whatever its capitals; an email or an unknown name is 
     delete global.strapi;
   }
 });
+
+// Adversarial review, 26 Oct 2026 (TEC-1909): Strapi's $eqi is SQL LIKE, so % and _ in a typed
+// name matched other accounts: "%" signed in against the first account, "D_nielle Sample" against
+// Danielle's. A name with either character is left as typed.
+test("a typed name with % or _ is never matched as a pattern", async () => {
+  const users = [{ username: "Danielle Sample", email: "danielle@example.com" }];
+  // SQL LIKE as a regular expression: % is any run, _ any one character.
+  const like = (pattern) => new RegExp("^" + pattern.toLowerCase().split(".").join("[.]").replace(/%/g, ".*").replace(/_/g, ".") + "$", "s");
+  global.strapi = { db: { query: () => ({ findOne: async ({ where }) => users.find((u) => like(String(where.username.$eqi)).test(u.username.toLowerCase())) ?? null }) } };
+  try {
+    for (const typed of ["%", "D_nielle Sample", "dan%"]) {
+      const body = { identifier: typed, password: "x" };
+      await signInLimitKey({ request: { body } }, async () => {});
+      assert.equal(body.identifier, typed, typed);
+    }
+    const real = { identifier: "danielle sample", password: "x" };
+    await signInLimitKey({ request: { body: real } }, async () => {});
+    assert.equal(real.identifier, "danielle@example.com");
+  } finally {
+    delete global.strapi;
+  }
+});

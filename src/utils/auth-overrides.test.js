@@ -356,3 +356,25 @@ test('Strapi gets the name with its spaces tidied, as the website sends it', asy
   await register(ctxOf({ username: '  Ann   Lee ', email: 'ann@example.com', password: 'long enough' }));
   assert.deepEqual(seen, ['Ann Lee']);
 });
+
+test('the known-address lookup is exact: % and _ in an address never match another account', async () => {
+  // Strapi's $eqi is SQL LIKE. With it, john_smith@ matched johnxsmith@ (a real new person
+  // could not sign up, and the other account was emailed), and "%@example.com" in a new
+  // string each time emailed an account over and over, past the one-an-hour limit.
+  const users = [{ id: 1, email: 'johnxsmith@example.com', confirmed: true }];
+  const strapi = fakeStrapi(users);
+  // SQL LIKE as a regular expression: % is any run, _ any one character.
+  const like = (p) => new RegExp('^' + p.toLowerCase().split('.').join('[.]').replace(/%/g, '.*').replace(/_/g, '.') + '$', 's');
+  strapi.db.query = () => ({
+    findOne: async ({ where }) => users.find((u) => {
+      const v = where.email;
+      return v && typeof v === 'object' && '$eqi' in v ? like(String(v.$eqi)).test(u.email) : u.email === v;
+    }) ?? null,
+  });
+  const made = [];
+  const register = wrapRegister(async (ctx) => { made.push(ctx.request.body.email); ctx.send({ user: { id: 7 } }); }, { strapi, env, limiter: noticeLimiter(), hash: async () => {} });
+  for (const email of ['john_smith@example.com', 'j%@example.com', 'jo%@example.com'])
+    await register(ctxOf({ username: 'John Smith', email, password: 'long enough' }));
+  assert.deepEqual(made, ['john_smith@example.com', 'j%@example.com', 'jo%@example.com']);
+  assert.equal(strapi.sent.length, 0, 'nobody else is emailed');
+});
