@@ -80,6 +80,10 @@ function wrapRegister(original, deps = {}) {
     // What a new sign-up waiting for its confirmation email looks like to anyone but the site.
     const reply = { user: { username: body.username, email, confirmed: false } };
 
+    // Registration switched off in the admin panel: Strapi refuses every address alike.
+    const advanced = (await strapi.store({ type: 'plugin', name: 'users-permissions' }).get({ key: 'advanced' })) || {};
+    if (!advanced.allow_register) return original.call(this, ctx, ...rest);
+
     const known = await strapi.db.query(USER).findOne({ where: { email: { $eqi: email } }, select: ['id', 'email', 'username', 'confirmed', 'blocked'] });
     if (known) {
       // Awaited, as Strapi awaits a new account's confirmation email, so both take as long.

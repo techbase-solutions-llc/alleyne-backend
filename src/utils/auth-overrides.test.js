@@ -45,9 +45,11 @@ function fakeStrapi(users = []) {
       },
     },
     store: () => ({
-      get: async ({ key }) => (key === 'email'
-        ? { reset_password: { options: { from: { name: 'Alleyne Real Estate', email: 'info@jalbarbados.com' }, response_email: 'info@jalbarbados.com' } } }
-        : null),
+      get: async ({ key }) => {
+        if (key === 'email') return { reset_password: { options: { from: { name: 'Alleyne Real Estate', email: 'info@jalbarbados.com' }, response_email: 'info@jalbarbados.com' } } };
+        if (key === 'advanced') return { allow_register: true };
+        return null;
+      },
     }),
     plugin: (name) => ({
       service: (svc) => {
@@ -165,6 +167,17 @@ test('an unconfirmed account gets its confirmation email again; a blocked one ge
   await register(ctxOf({ username: 'Un', email: 'un@example.com', password: 'long enough' }));
   await register(ctxOf({ username: 'Bl', email: 'blocked@example.com', password: 'long enough' }));
   assert.deepEqual(strapi.confirmations, ['un@example.com']);
+  assert.equal(strapi.sent.length, 0);
+});
+
+test('with sign-up switched off in the admin panel, every address gets Strapi\'s refusal and nobody is emailed', async () => {
+  const strapi = fakeStrapi([{ id: 1, email: 'ann@example.com', confirmed: true }]);
+  strapi.store = () => ({ get: async ({ key }) => (key === 'advanced' ? { allow_register: false } : null) });
+  const { errors } = require('@strapi/utils');
+  const original = async () => { throw new errors.ApplicationError('Register action is currently disabled'); };
+  const register = wrapRegister(original, { strapi, env, limiter: noticeLimiter() });
+  for (const email of ['ann@example.com', 'new@example.com'])
+    await assert.rejects(register(ctxOf({ username: 'Ann', email, password: 'long enough' })), /currently disabled/);
   assert.equal(strapi.sent.length, 0);
 });
 
