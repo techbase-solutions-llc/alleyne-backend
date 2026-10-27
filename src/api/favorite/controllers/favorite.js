@@ -3,22 +3,9 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 const { isServerToken, tokenListPage } = require('../../../utils/favourite-token-list');
 
-// Signed-in users no longer read listings through the API (TEC-1343 review), so the
-// sanitizer would strip the listing from their own favourites. The listing is attached
-// here with a fixed set of card fields, and only while the public can see it.
-const LISTING_FIELDS = ['slug', 'title', 'transactionType', 'parish', 'bedrooms', 'bathrooms', 'priceMinor', 'nightlyRateMinor'];
-// Quiet listings are shared only by their private link, and archived ones are off the
-// site: neither can be saved or shown as a saved card (TEC-1412).
-const HIDDEN = new Set(['draft', 'suppressed', 'quiet', 'archived']);
-const cardOf = (l) => {
-  if (!l || l.publishedAt == null || HIDDEN.has(l.status)) return null;
-  const out = { id: l.id };
-  for (const k of LISTING_FIELDS) out[k] = l[k] ?? null;
-  // The listing's own first photo (TEC-1344: saved cards showed stock photos).
-  const ext = Array.isArray(l.externalImages) ? l.externalImages.find((u) => typeof u === 'string' && u.startsWith('http')) : null;
-  out.image = ext || l.primaryMedia?.url || null;
-  return out;
-};
+// The card rules (which fields, only while public) and the name kept for one that has left the
+// website live in utils/favourite-card.js (review, 27 Oct).
+const { LISTING_FIELDS, cardOf, goneTitleOf } = require('../../../utils/favourite-card');
 
 module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => ({
   /**
@@ -66,7 +53,11 @@ module.exports = createCoreController('api::favorite.favorite', ({ strapi }) => 
 
     const cards = new Map(entities.map((e) => [e.id, cardOf(e.listing)]));
     const sanitized = await this.sanitizeOutput(entities.map(({ listing, ...rest }) => rest), ctx);
-    for (const row of sanitized) row.listing = cards.get(row.id) ?? null;
+    const gone = new Map(entities.map((e) => [e.id, goneTitleOf(e.listing)]));
+    for (const row of sanitized) {
+      row.listing = cards.get(row.id) ?? null;
+      row.goneTitle = gone.get(row.id) ?? null;
+    }
     return this.transformResponse(sanitized, {
       pagination: { page, pageSize, pageCount: Math.ceil(total / pageSize), total },
     });
