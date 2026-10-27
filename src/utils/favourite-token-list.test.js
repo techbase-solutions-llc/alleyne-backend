@@ -6,8 +6,12 @@ const { isServerToken, tokenListPage } = require('./favourite-token-list');
 // Review, 26 Oct (TEC-1909, plan D3): the website's daily alert run reads every saved property
 // with its server token, to tell people when a saved property's price drops, it sells or lets,
 // or it comes back. Only ids and the last told price and status, never names or emails.
-test('only an API token request counts as the server', () => {
-  assert.equal(isServerToken({ state: { auth: { strategy: { name: 'api-token' } } } }), true);
+test('only a full-access API token counts as the server, as for saved searches (review, 27 Oct)', () => {
+  const token = (type) => ({ state: { auth: { strategy: { name: 'api-token' }, credentials: { type } } } });
+  assert.equal(isServerToken(token('full-access')), true);
+  assert.equal(isServerToken(token('read-only')), false);
+  assert.equal(isServerToken(token('custom')), false);
+  assert.equal(isServerToken({ state: { auth: { strategy: { name: 'api-token' } } } }), false);
   assert.equal(isServerToken({ state: { auth: { strategy: { name: 'users-permissions' } }, user: { id: 1 } } }), false);
   assert.equal(isServerToken({ state: {} }), false);
 });

@@ -1,7 +1,9 @@
 // src/extensions/users-permissions/strapi-server.js
 'use strict';
 const { limitConfirmationResend, pinSignInLimitKey } = require('../../utils/auth-routes');
-const { withTokenRevocation, wrapRegister, wrapResetPassword, wrapChangePassword, userLifecycles } = require('../../utils/auth-overrides');
+const {
+  withTokenRevocation, wrapRegister, wrapResetPassword, wrapChangePassword, wrapForgotPassword, wrapSendEmailConfirmation, userLifecycles,
+} = require('../../utils/auth-overrides');
 
 // Confirmation emails can be resent only a few times an hour per address, and the sign-in
 // limit counts per account tried, which the caller cannot change (review, 8 Oct).
@@ -20,6 +22,9 @@ module.exports = (plugin) => {
   auth.register = wrapRegister(auth.register);
   auth.resetPassword = wrapResetPassword(auth.resetPassword);
   auth.changePassword = wrapChangePassword(auth.changePassword);
+  // Neither says whether an address has an account (review, 27 Oct).
+  auth.forgotPassword = wrapForgotPassword(auth.forgotPassword);
+  auth.sendEmailConfirmation = wrapSendEmailConfirmation(auth.sendEmailConfirmation);
 
   plugin.contentTypes.user.lifecycles = { ...(plugin.contentTypes.user.lifecycles || {}), ...userLifecycles() };
   return plugin;

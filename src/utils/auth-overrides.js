@@ -171,6 +171,57 @@ function wrapChangePassword(original, deps = {}) {
   };
 }
 
+/** Forgot password and resend confirmation take at least this long, so a known address (code
+    written, email sent) and an unknown one (answered at once) cannot be told apart by time. */
+const LOOKUP_MIN_MS = 1500;
+const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Waits until `min` ms have passed since `start`. */
+async function padTo(start, min, now, sleep) {
+  const left = min - (now() - start);
+  if (left > 0) await sleep(left);
+}
+
+/** Strapi's forgot-password with one answer for every address (review, 27 Oct): a failed send
+    is logged and answered like any other, and every answer takes about as long. A badly formed
+    request is still refused. */
+function wrapForgotPassword(original, deps = {}) {
+  const now = deps.now || Date.now;
+  const sleep = deps.sleep || realSleep;
+  return async function forgotPassword(ctx, ...rest) {
+    const start = now();
+    try {
+      await original.call(this, ctx, ...rest);
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      strapiOf(deps).log?.error?.(`[forgot-password] not sent: ${err && err.message}`);
+      ctx.send({ ok: true });
+    }
+    await padTo(start, LOOKUP_MIN_MS, now, sleep);
+  };
+}
+
+/** Strapi's resend-confirmation with one answer for every address (review, 27 Oct): it said
+    "Already confirmed" or "User blocked" for an account, which told a stranger it existed.
+    Those now get the unknown-address answer; an unconfirmed account is sent its email as
+    before. A badly formed request is still refused. */
+function wrapSendEmailConfirmation(original, deps = {}) {
+  const now = deps.now || Date.now;
+  const sleep = deps.sleep || realSleep;
+  return async function sendEmailConfirmation(ctx, ...rest) {
+    const start = now();
+    const body = (ctx.request && ctx.request.body) || {};
+    try {
+      await original.call(this, ctx, ...rest);
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      if (!(err instanceof ApplicationError)) strapiOf(deps).log?.error?.(`[send-email-confirmation] not sent: ${err && err.message}`);
+      ctx.send({ email: String(body.email || '').trim().toLowerCase(), sent: true });
+    }
+    await padTo(start, LOOKUP_MIN_MS, now, sleep);
+  };
+}
+
 /** The user content type's lifecycle: the stamps (A1, A2), the welcome email when an account is
     first confirmed, however that happens (D4), and the delete clean-up (A5). Strapi passes the
     same event.state to the before and after halves. */
@@ -205,5 +256,6 @@ function userLifecycles(deps = {}) {
 }
 
 module.exports = {
-  NAME_TAKEN, sendAccountNotice, withTokenRevocation, wrapRegister, wrapResetPassword, wrapChangePassword, userLifecycles,
+  NAME_TAKEN, LOOKUP_MIN_MS, sendAccountNotice, withTokenRevocation, wrapRegister, wrapResetPassword, wrapChangePassword,
+  wrapForgotPassword, wrapSendEmailConfirmation, userLifecycles,
 };
