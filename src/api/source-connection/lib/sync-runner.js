@@ -1,4 +1,5 @@
 'use strict';
+const { legacySyncSender } = require('../../../utils/legacy-sync-sender');
 
 const { parseSitemapUrls, isSitemapIndex } = require('./sitemap-parser');
 const { classifyUrl, classifyContent } = require('./policy-classifier');
@@ -173,8 +174,8 @@ async function staleReconciliation(connectionId, discoveredUrlSet) {
         const conn = await strapi.entityService.findOne('api::source-connection.source-connection', connectionId, { populate: ['owner'] });
         const ownerEmail = conn?.owner?.email;
         const resendKey = process.env.RESEND_API_KEY;
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@realtlist.com';
-        if (ownerEmail && resendKey) {
+        const fromEmail = legacySyncSender(process.env);
+        if (ownerEmail && resendKey && fromEmail) {
           await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
