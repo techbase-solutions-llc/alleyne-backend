@@ -130,8 +130,10 @@ test("a saved property remembers the price and status the person was last told a
   assert.deepEqual(a.notifiedStatus, { type: "string" });
 });
 
-// Owner, 27 Oct: Full Service is set by staff with a switch, never worked out from the staff
-// included.
-test("a listing has a Full Service switch, off unless staff turn it on", () => {
-  assert.deepEqual(schema("canonical-listing").attributes.fullService, { type: "boolean", default: false });
+// Owner, 27 Oct: every collection (Full Service included) is chosen by staff with switches in the
+// back office, never worked out from listing facts. The listing keeps the collections it is in.
+test("a listing keeps the collections staff switched it into, and has no separate Full Service flag", () => {
+  const a = schema("canonical-listing").attributes;
+  assert.deepEqual(a.collections, { type: "json" });
+  assert.equal(a.fullService, undefined);
 });

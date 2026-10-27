@@ -310,9 +310,8 @@
       "type": "boolean",
       "default": false
     },
-    "fullService": {
-      "type": "boolean",
-      "default": false
+    "collections": {
+      "type": "json"
     },
     "specialOffer": {
       "type": "string",
