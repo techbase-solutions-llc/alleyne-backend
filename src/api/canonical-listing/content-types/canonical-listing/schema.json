@@ -310,6 +310,10 @@
       "type": "boolean",
       "default": false
     },
+    "fullService": {
+      "type": "boolean",
+      "default": false
+    },
     "specialOffer": {
       "type": "string",
       "maxLength": 120

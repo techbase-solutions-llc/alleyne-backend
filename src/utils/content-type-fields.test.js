@@ -129,3 +129,9 @@ test("a saved property remembers the price and status the person was last told a
   assert.deepEqual(a.notifiedPriceMinor, { type: "biginteger" });
   assert.deepEqual(a.notifiedStatus, { type: "string" });
 });
+
+// Owner, 27 Oct: Full Service is set by staff with a switch, never worked out from the staff
+// included.
+test("a listing has a Full Service switch, off unless staff turn it on", () => {
+  assert.deepEqual(schema("canonical-listing").attributes.fullService, { type: "boolean", default: false });
+});
