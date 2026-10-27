@@ -171,55 +171,49 @@ function wrapChangePassword(original, deps = {}) {
   };
 }
 
-/** Forgot password and resend confirmation take at least this long, so a known address (code
-    written, email sent) and an unknown one (answered at once) cannot be told apart by time. */
+/** Forgot password and resend confirmation answer this long after the request, whatever the
+    address: known (code written, email sent), unknown (nothing to do) or with a slow mail server. */
 const LOOKUP_MIN_MS = 1500;
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Waits until `min` ms have passed since `start`. */
-async function padTo(start, min, now, sleep) {
-  const left = min - (now() - start);
-  if (left > 0) await sleep(left);
+/** Runs Strapi's handler against a stand-in for the request, so its own answer is never sent,
+    and answers `answer` at the floor (review, 27 Oct). A badly formed request is refused as
+    Strapi refuses it. Anything still running at the floor (the email) finishes in the
+    background, and a failure is logged unless `quiet(err)` says it is expected. */
+function answerAtFloor(label, original, deps, answer, quiet = () => false) {
+  const min = deps.minMs ?? LOOKUP_MIN_MS;
+  const sleep = deps.sleep || realSleep;
+  const log = (err) => { if (!quiet(err)) strapiOf(deps).log?.error?.(`[${label}] not sent: ${err && err.message}`); };
+  return async function atFloor(ctx, ...rest) {
+    const shadow = Object.create(ctx);
+    shadow.send = () => {};
+    const work = Promise.resolve().then(() => original.call(this, shadow, ...rest)).then(() => null, (err) => err);
+    const floor = sleep(min);
+    const first = await Promise.race([work.then((err) => ({ err })), floor.then(() => null)]);
+    if (first && first.err instanceof ValidationError) throw first.err;
+    if (first) {
+      if (first.err) log(first.err);
+      await floor;
+    } else {
+      work.then((err) => { if (err) log(err); });
+    }
+    ctx.send(answer(ctx));
+  };
 }
 
-/** Strapi's forgot-password with one answer for every address (review, 27 Oct): a failed send
-    is logged and answered like any other, and every answer takes about as long. A badly formed
-    request is still refused. */
+/** Strapi's forgot-password with one answer, at one time, for every address (review, 27 Oct). */
 function wrapForgotPassword(original, deps = {}) {
-  const now = deps.now || Date.now;
-  const sleep = deps.sleep || realSleep;
-  return async function forgotPassword(ctx, ...rest) {
-    const start = now();
-    try {
-      await original.call(this, ctx, ...rest);
-    } catch (err) {
-      if (err instanceof ValidationError) throw err;
-      strapiOf(deps).log?.error?.(`[forgot-password] not sent: ${err && err.message}`);
-      ctx.send({ ok: true });
-    }
-    await padTo(start, LOOKUP_MIN_MS, now, sleep);
-  };
+  return answerAtFloor('forgot-password', original, deps, () => ({ ok: true }));
 }
 
-/** Strapi's resend-confirmation with one answer for every address (review, 27 Oct): it said
-    "Already confirmed" or "User blocked" for an account, which told a stranger it existed.
-    Those now get the unknown-address answer; an unconfirmed account is sent its email as
-    before. A badly formed request is still refused. */
+/** Strapi's resend-confirmation with one answer, at one time, for every address (review, 27
+    Oct): it said "Already confirmed" or "User blocked" for an account, which told a stranger it
+    existed. An unconfirmed account is sent its email as before. */
 function wrapSendEmailConfirmation(original, deps = {}) {
-  const now = deps.now || Date.now;
-  const sleep = deps.sleep || realSleep;
-  return async function sendEmailConfirmation(ctx, ...rest) {
-    const start = now();
+  return answerAtFloor('send-email-confirmation', original, deps, (ctx) => {
     const body = (ctx.request && ctx.request.body) || {};
-    try {
-      await original.call(this, ctx, ...rest);
-    } catch (err) {
-      if (err instanceof ValidationError) throw err;
-      if (!(err instanceof ApplicationError)) strapiOf(deps).log?.error?.(`[send-email-confirmation] not sent: ${err && err.message}`);
-      ctx.send({ email: String(body.email || '').trim().toLowerCase(), sent: true });
-    }
-    await padTo(start, LOOKUP_MIN_MS, now, sleep);
-  };
+    return { email: String(body.email || '').trim().toLowerCase(), sent: true };
+  }, (err) => err instanceof ApplicationError);
 }
 
 /** The user content type's lifecycle: the stamps (A1, A2), the welcome email when an account is

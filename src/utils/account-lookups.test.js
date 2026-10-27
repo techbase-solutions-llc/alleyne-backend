@@ -14,63 +14,93 @@ const ctxOf = (body) => {
   ctx.send = (b) => { ctx.body = b; };
   return ctx;
 };
-/** A clock that only moves when the wrapper waits or the original "works". */
-function clock() {
-  let t = 1000;
-  return { now: () => t, sleep: async (ms) => { t += ms; }, work: (ms) => { t += ms; } };
-}
 const quiet = { log: { error() {}, warn() {}, info() {} } };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const FLOOR = 40;
+/** Runs one request and says how long the answer took. */
+async function timed(wrap, original, body) {
+  const ctx = ctxOf(body);
+  const t0 = Date.now();
+  await wrap(original, { strapi: quiet, minMs: FLOOR })(ctx);
+  return { body: ctx.body, took: Date.now() - t0 };
+}
 
-test('forgot password: unknown, known and failed-send addresses get the same answer after the same wait', async () => {
-  const c = clock();
-  const answers = [];
-  const cases = [
-    async (ctx) => { c.work(5); ctx.send({ ok: true }); }, // unknown address: Strapi answers at once
-    async (ctx) => { c.work(700); ctx.send({ ok: true }); }, // known: code written and email sent
-    async () => { c.work(400); throw new Error('Resend said no'); }, // known, the send failed
-  ];
-  for (const original of cases) {
-    const start = c.now();
-    const ctx = ctxOf({ email: 'a@b.co' });
-    await wrapForgotPassword(original, { now: c.now, sleep: c.sleep, strapi: quiet })(ctx);
-    answers.push({ body: ctx.body, took: c.now() - start });
-  }
-  for (const a of answers) assert.deepEqual(a.body, { ok: true });
-  assert.ok(answers.every((a) => a.took === LOOKUP_MIN_MS), JSON.stringify(answers));
+test('the floor is 1.5 seconds', () => {
+  assert.equal(LOOKUP_MIN_MS, 1500);
 });
 
-test('forgot password: a badly formed request is still refused with Strapi\'s own message', async () => {
-  const c = clock();
+test('forgot password: unknown, known, slow and failed sends all get the same answer at the floor', async () => {
+  const cases = [
+    async (ctx) => { ctx.send({ ok: true }); }, // unknown address: Strapi answers at once
+    async (ctx) => { await wait(10); ctx.send({ ok: true }); }, // known: code written, email sent
+    async (ctx) => { await wait(150); ctx.send({ ok: true }); }, // known, a slow mail server
+    async () => { await wait(5); throw new Error('Resend said no'); }, // known, the send failed
+  ];
+  for (const original of cases) {
+    const r = await timed(wrapForgotPassword, original, { email: 'a@b.co' });
+    assert.deepEqual(r.body, { ok: true });
+    assert.ok(r.took >= FLOOR - 5 && r.took < FLOOR + 60, `answered after ${r.took} ms`);
+  }
+});
+
+test('forgot password: a badly formed request is still refused with Strapi\x27s own message', async () => {
   const original = async () => { throw new errors.ValidationError('email must be a valid email'); };
-  await assert.rejects(wrapForgotPassword(original, { now: c.now, sleep: c.sleep, strapi: quiet })(ctxOf({ email: 'nope' })), errors.ValidationError);
+  await assert.rejects(wrapForgotPassword(original, { strapi: quiet, minMs: FLOOR })(ctxOf({ email: 'nope' })), errors.ValidationError);
 });
 
 test('resend confirmation: confirmed, blocked and unknown addresses get the new-address answer', async () => {
   for (const msg of ['Already confirmed', 'User blocked']) {
-    const c = clock();
-    const ctx = ctxOf({ email: 'Known@B.co' });
-    const original = async () => { throw new errors.ApplicationError(msg); };
-    await wrapSendEmailConfirmation(original, { now: c.now, sleep: c.sleep, strapi: quiet })(ctx);
-    assert.deepEqual(ctx.body, { email: 'known@b.co', sent: true }, msg);
+    const r = await timed(wrapSendEmailConfirmation, async () => { throw new errors.ApplicationError(msg); }, { email: 'Known@B.co' });
+    assert.deepEqual(r.body, { email: 'known@b.co', sent: true }, msg);
   }
-  const c = clock();
-  const ctx = ctxOf({ email: 'new@b.co' });
-  await wrapSendEmailConfirmation(async (x) => { x.send({ email: 'new@b.co', sent: true }); }, { now: c.now, sleep: c.sleep, strapi: quiet })(ctx);
-  assert.deepEqual(ctx.body, { email: 'new@b.co', sent: true });
-  assert.equal(c.now() - 1000, LOOKUP_MIN_MS);
+  const r = await timed(wrapSendEmailConfirmation, async (x) => { x.send({ email: 'new@b.co', sent: true }); }, { email: 'new@b.co' });
+  assert.deepEqual(r.body, { email: 'new@b.co', sent: true });
+  assert.ok(r.took >= FLOOR - 5);
 });
 
 test('resend confirmation: an unconfirmed account is sent its email as before', async () => {
-  const c = clock();
   let called = 0;
-  const ctx = ctxOf({ email: 'wait@b.co' });
-  await wrapSendEmailConfirmation(async (x) => { called += 1; c.work(600); x.send({ email: 'wait@b.co', sent: true }); }, { now: c.now, sleep: c.sleep, strapi: quiet })(ctx);
+  const r = await timed(wrapSendEmailConfirmation, async (x) => { called += 1; await wait(10); x.send({ email: 'wait@b.co', sent: true }); }, { email: 'wait@b.co' });
   assert.equal(called, 1);
-  assert.deepEqual(ctx.body, { email: 'wait@b.co', sent: true });
+  assert.deepEqual(r.body, { email: 'wait@b.co', sent: true });
 });
 
 test('both wrappers are wired into the users-permissions plugin', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'extensions', 'users-permissions', 'strapi-server.js'), 'utf8');
   assert.match(src, /auth\.forgotPassword = wrapForgotPassword\(auth\.forgotPassword\)/);
   assert.match(src, /auth\.sendEmailConfirmation = wrapSendEmailConfirmation\(auth\.sendEmailConfirmation\)/);
+});
+
+// Review, 27 Oct: a floor alone still leaked when the email send took longer than 1.5 s. The
+// answer now goes at the floor whatever the send does; the send finishes in the background.
+test('a slow send does not delay the answer: it comes at the floor, the send finishes after', async () => {
+  for (const wrap of [wrapForgotPassword, wrapSendEmailConfirmation]) {
+    let finished = false;
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    const original = async (ctx) => { await gate; finished = true; ctx.send({ ok: true, email: 'a@b.co', sent: true }); };
+    const ctx = ctxOf({ email: 'a@b.co' });
+    const t0 = Date.now();
+    await wrap(original, { strapi: quiet, minMs: 50 })(ctx);
+    const took = Date.now() - t0;
+    assert.ok(took >= 45 && took < 1000, `answered after ${took} ms`);
+    assert.equal(finished, false, 'the send is still going');
+    assert.ok(ctx.body, 'already answered');
+    const answered = JSON.stringify(ctx.body);
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(finished, true);
+    assert.equal(JSON.stringify(ctx.body), answered, 'the late send does not change the answer');
+  }
+});
+
+test('a failure after the answer is logged, never thrown', async () => {
+  const errors = [];
+  const strapi = { log: { error: (m) => errors.push(m), warn() {}, info() {} } };
+  const original = async () => { await new Promise((r) => setTimeout(r, 30)); throw new Error('smtp down'); };
+  const ctx = ctxOf({ email: 'a@b.co' });
+  await wrapForgotPassword(original, { strapi, minMs: 5 })(ctx);
+  await new Promise((r) => setTimeout(r, 60));
+  assert.deepEqual(ctx.body, { ok: true });
+  assert.equal(errors.length, 1);
 });
