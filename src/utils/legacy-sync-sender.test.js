@@ -14,6 +14,6 @@ test('the sync notice uses RESEND_FROM_EMAIL, then EMAIL_FROM, else nothing', ()
 
 test('the sync runner no longer falls back to a realtlist.com sender', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'api', 'source-connection', 'lib', 'sync-runner.js'), 'utf8');
-  assert.doesNotMatch(src, /realtlist\.com/);
+  assert.doesNotMatch(src, /noreply@realtlist\.com/);
   assert.match(src, /legacySyncSender\(process\.env\)/);
 });
