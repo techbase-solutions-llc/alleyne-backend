@@ -65,9 +65,14 @@ function listingNoteGrants(roles) {
 // Every action on the transactions API, today's five and any added later.
 const LISTING_TRANSACTION_PREFIX = 'api::listing-transaction.listing-transaction.';
 
-/** As listingNoteGrants, for every office-only API: the notes and the transactions. */
+// Daily visitor counts from the website's analytics drain (back office metrics, TEC-1344).
+// Written and read by the website's server token only, exactly as the notes.
+const PAGE_VIEW_DAY_PREFIX = 'api::page-view-day.page-view-day.';
+
+/** As listingNoteGrants, for every office-only API: the notes, the transactions and the daily
+    visitor counts. */
 function officeOnlyGrants(roles) {
-  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX]);
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX]);
 }
 
 function grantsOn(roles, prefixes) {
@@ -85,6 +90,7 @@ module.exports = {
   LISTING_NOTE_PREFIX,
   LISTING_TRANSACTION_ACTIONS,
   LISTING_TRANSACTION_PREFIX,
+  PAGE_VIEW_DAY_PREFIX,
   toRevoke,
   listingNoteGrants,
   officeOnlyGrants,

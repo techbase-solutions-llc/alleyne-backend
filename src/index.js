@@ -298,9 +298,9 @@ module.exports = {
       }
     }
 
-    // ── Listing notes and transactions: no role at all (TEC-1909) ─────────────
-    // The Public and Authenticated lists above only cover those two roles. A notes or
-    // transactions box ticked for Agent, AgencyOwner, AgencyStaff, Host, Moderator or any
+    // ── Listing notes, transactions and visitor counts: no role at all (TEC-1909, TEC-1344)
+    // The Public and Authenticated lists above only cover those two roles. A notes,
+    // transactions or page-view-day box ticked for Agent, AgencyOwner, AgencyStaff, Host, Moderator or any
     // later role would let that role read every office record with its own JWT, so every
     // role is checked on every boot. The website reaches them with its server token, which
     // is not a role. Rows are re-read here, so a grant already removed above is not deleted

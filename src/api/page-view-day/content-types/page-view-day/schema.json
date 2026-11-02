@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "page_view_days",
+  "info": {
+    "singularName": "page-view-day",
+    "pluralName": "page-view-days",
+    "displayName": "PageViewDay",
+    "description": "Daily page views and visitors from the website's Web Analytics drain, per Barbados day and dimension. Written only by the website's server token."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "day": {
+      "type": "date",
+      "required": true
+    },
+    "dimension": {
+      "type": "enumeration",
+      "enum": ["path", "source", "device", "country", "listing"],
+      "required": true
+    },
+    "value": {
+      "type": "string",
+      "required": true,
+      "maxLength": 300
+    },
+    "views": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "visitors": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "key": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "column": { "unique": true }
+    }
+  }
+}

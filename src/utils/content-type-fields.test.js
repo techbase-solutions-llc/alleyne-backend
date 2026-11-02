@@ -137,3 +137,25 @@ test("a listing keeps the collections staff switched it into, and has no separat
   assert.deepEqual(a.collections, { type: "json" });
   assert.equal(a.fullService, undefined);
 });
+
+// Daily visitor counts (back office metrics plan, step 1; TEC-1344). The website's analytics
+// drain adds to them through POST /page-view-days/add (src/utils/page-view-days.js), which needs
+// a real unique index on key: Strapi 4 builds one only from column.unique, not from unique alone.
+test("a page-view day holds a day, dimension, value and two counts, with a unique key", () => {
+  const s = schema("page-view-day");
+  const a = s.attributes;
+  assert.equal(s.collectionName, "page_view_days");
+  assert.equal(s.options.draftAndPublish, false);
+  assert.deepEqual(a.day, { type: "date", required: true });
+  assert.deepEqual(a.dimension, { type: "enumeration", enum: ["path", "source", "device", "country", "listing"], required: true });
+  assert.deepEqual(a.value, { type: "string", required: true, maxLength: 300 });
+  assert.deepEqual(a.views, { type: "integer", default: 0, min: 0 });
+  assert.deepEqual(a.visitors, { type: "integer", default: 0, min: 0 });
+  assert.deepEqual(a.key, { type: "string", required: true, unique: true, column: { unique: true } });
+  assert.deepEqual(Object.keys(a).sort(), ["day", "dimension", "key", "value", "views", "visitors"]);
+  // The drain's limits match the schema.
+  const { DIMENSIONS, MAX_VALUE, TABLE } = require("./page-view-days");
+  assert.deepEqual(DIMENSIONS, a.dimension.enum);
+  assert.equal(MAX_VALUE, a.value.maxLength);
+  assert.equal(TABLE, s.collectionName);
+});

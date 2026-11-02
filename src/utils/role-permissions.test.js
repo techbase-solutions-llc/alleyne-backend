@@ -102,3 +102,17 @@ test("every role's notes and transactions grants are found, and nothing else", (
   assert.deepEqual(officeOnlyGrants(undefined), []);
   assert.deepEqual(officeOnlyGrants([{ id: 1, name: "Host" }]), []);
 });
+
+test("every role's grant on the daily visitor counts is found too (TEC-1344)", () => {
+  const { officeOnlyGrants, PAGE_VIEW_DAY_PREFIX } = require("./role-permissions");
+  assert.equal(PAGE_VIEW_DAY_PREFIX, "api::page-view-day.page-view-day.");
+  const roles = [
+    { id: 1, name: "Public", permissions: [{ id: 11, action: "api::page-view-day.page-view-day.find" }] },
+    { id: 2, name: "Authenticated", permissions: [
+      { id: 21, action: "api::page-view-day.page-view-day.add" },
+      { id: 22, action: "api::favorite.favorite.find" },
+    ] },
+    { id: 3, name: "Agent", permissions: [{ id: 31, action: "api::page-view-day-archive.page-view-day-archive.find" }] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21]);
+});
