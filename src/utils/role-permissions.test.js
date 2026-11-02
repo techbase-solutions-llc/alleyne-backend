@@ -112,7 +112,11 @@ test("every role's grant on the daily visitor counts is found too (TEC-1344)", (
       { id: 21, action: "api::page-view-day.page-view-day.add" },
       { id: 22, action: "api::favorite.favorite.find" },
     ] },
-    { id: 3, name: "Agent", permissions: [{ id: 31, action: "api::page-view-day-archive.page-view-day-archive.find" }] },
+    { id: 3, name: "Agent", permissions: [
+      { id: 31, action: "api::page-view-day-archive.page-view-day-archive.find" },
+      { id: 32, action: "api::page-view-seen.page-view-seen.find" },
+      { id: 33, action: "api::page-view-batch.page-view-batch.find" },
+    ] },
   ];
-  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21]);
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21, 32, 33]);
 });

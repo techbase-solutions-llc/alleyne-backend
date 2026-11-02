@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "page_view_seen",
+  "info": {
+    "singularName": "page-view-seen",
+    "pluralName": "page-view-seens",
+    "displayName": "PageViewSeen",
+    "description": "Visitor tokens already counted per day, dimension and value (an HMAC of the day and Vercel's device id, never the id itself). Kept 8 days. No routes; written by POST /page-view-days/add only."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "day": {
+      "type": "date",
+      "required": true
+    },
+    "key": {
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "column": {
+        "unique": true
+      }
+    }
+  }
+}

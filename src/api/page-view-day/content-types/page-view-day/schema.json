@@ -17,13 +17,19 @@
     },
     "dimension": {
       "type": "enumeration",
-      "enum": ["path", "source", "device", "country", "listing"],
+      "enum": [
+        "path",
+        "source",
+        "device",
+        "country",
+        "listing"
+      ],
       "required": true
     },
     "value": {
-      "type": "string",
+      "type": "text",
       "required": true,
-      "maxLength": 300
+      "maxLength": 200
     },
     "views": {
       "type": "integer",
@@ -36,10 +42,12 @@
       "min": 0
     },
     "key": {
-      "type": "string",
+      "type": "text",
       "required": true,
       "unique": true,
-      "column": { "unique": true }
+      "column": {
+        "unique": true
+      }
     }
   }
 }

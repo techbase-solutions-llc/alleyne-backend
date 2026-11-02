@@ -148,14 +148,31 @@ test("a page-view day holds a day, dimension, value and two counts, with a uniqu
   assert.equal(s.options.draftAndPublish, false);
   assert.deepEqual(a.day, { type: "date", required: true });
   assert.deepEqual(a.dimension, { type: "enumeration", enum: ["path", "source", "device", "country", "listing"], required: true });
-  assert.deepEqual(a.value, { type: "string", required: true, maxLength: 300 });
+  // Text, not string: a Strapi string is varchar(255) on Postgres, and a long path in the key
+  // overflowed it and rolled back the whole call (review, 2 Nov 2026).
+  assert.deepEqual(a.value, { type: "text", required: true, maxLength: 200 });
   assert.deepEqual(a.views, { type: "integer", default: 0, min: 0 });
   assert.deepEqual(a.visitors, { type: "integer", default: 0, min: 0 });
-  assert.deepEqual(a.key, { type: "string", required: true, unique: true, column: { unique: true } });
+  assert.deepEqual(a.key, { type: "text", required: true, unique: true, column: { unique: true } });
   assert.deepEqual(Object.keys(a).sort(), ["day", "dimension", "key", "value", "views", "visitors"]);
   // The drain's limits match the schema.
   const { DIMENSIONS, MAX_VALUE, TABLE } = require("./page-view-days");
   assert.deepEqual(DIMENSIONS, a.dimension.enum);
   assert.equal(MAX_VALUE, a.value.maxLength);
   assert.equal(TABLE, s.collectionName);
+});
+
+// The visitor tokens already counted, and the deliveries already added (review, 2 Nov 2026):
+// both are a day and a unique text key, kept 8 days.
+test("seen visitor tokens and added deliveries are a day and a unique text key", () => {
+  const { SEEN_TABLE, BATCH_TABLE } = require("./page-view-days");
+  for (const [api, table] of [["page-view-seen", SEEN_TABLE], ["page-view-batch", BATCH_TABLE]]) {
+    const s = schema(api);
+    assert.equal(s.collectionName, table, api);
+    assert.equal(s.options.draftAndPublish, false, api);
+    assert.deepEqual(s.attributes, {
+      day: { type: "date", required: true },
+      key: { type: "text", required: true, unique: true, column: { unique: true } },
+    }, api);
+  }
 });

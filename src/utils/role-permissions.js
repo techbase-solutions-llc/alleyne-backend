@@ -68,11 +68,14 @@ const LISTING_TRANSACTION_PREFIX = 'api::listing-transaction.listing-transaction
 // Daily visitor counts from the website's analytics drain (back office metrics, TEC-1344).
 // Written and read by the website's server token only, exactly as the notes.
 const PAGE_VIEW_DAY_PREFIX = 'api::page-view-day.page-view-day.';
+// Its visitor tokens and delivery keys have no routes at all; any grant is still removed.
+const PAGE_VIEW_SEEN_PREFIX = 'api::page-view-seen.page-view-seen.';
+const PAGE_VIEW_BATCH_PREFIX = 'api::page-view-batch.page-view-batch.';
 
 /** As listingNoteGrants, for every office-only API: the notes, the transactions and the daily
-    visitor counts. */
+    visitor counts with their tokens and delivery keys. */
 function officeOnlyGrants(roles) {
-  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX]);
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX]);
 }
 
 function grantsOn(roles, prefixes) {

@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "page_view_batches",
+  "info": {
+    "singularName": "page-view-batch",
+    "pluralName": "page-view-batchs",
+    "displayName": "PageViewBatch",
+    "description": "Analytics drain deliveries already added, by sha256 of the body and part number, so a redelivery adds nothing. Kept 8 days. No routes; written by POST /page-view-days/add only."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "day": {
+      "type": "date",
+      "required": true
+    },
+    "key": {
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "column": {
+        "unique": true
+      }
+    }
+  }
+}
