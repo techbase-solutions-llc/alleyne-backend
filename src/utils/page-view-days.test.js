@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const knexFactory = require("knex");
 const {
   MAX_ROWS, MAX_VALUE, KEEP_DAYS, DIMENSIONS, TABLE, SEEN_TABLE, BATCH_TABLE,
-  checkRows, keyOf, mergeRows, addRows, barbadosDay,
+  checkRows, keyOf, mergeRows, addRows, barbadosDay, cleanValue,
 } = require("./page-view-days");
 
 const T1 = "aaaaaaaaaaaaaaa1";
@@ -262,6 +262,46 @@ test("an empty delivery is still recorded, so its repeat is recognised", async (
     assert.deepEqual(await add(knex, []), { added: 0, repeat: false });
     assert.deepEqual(await add(knex, []), { added: 0, repeat: true });
     assert.deepEqual(await counts(knex), []);
+  } finally {
+    await knex.destroy();
+  }
+});
+
+// Second review (2 Nov 2026): Postgres text cannot hold NUL, and stores a lone surrogate half as
+// U+FFFD, so keys stopped matching and two values could become one key in a single INSERT.
+test("values lose control characters and lone surrogates, and are cut by whole characters", () => {
+  assert.equal(cleanValue("a\u0000b\u001fc\u007fd"), "abcd");
+  assert.equal(cleanValue("ok\uD83Dx"), "okx");
+  assert.equal(cleanValue("\uDC00ok"), "ok");
+  const slug = `${"a".repeat(199)}\u{1F3E0}`;
+  assert.equal(cleanValue(slug), slug);
+  assert.equal(cleanValue(`${"a".repeat(200)}\u{1F3E0}`), "a".repeat(200));
+  assert.equal(cleanValue("\u0000\u0001"), "");
+});
+
+test("a row is stored with its value cleaned; one empty once cleaned is dropped, not refused", () => {
+  const out = checkRows(body([row({ value: "a\u0000b" }), row({ value: "\u0000\u0001" }), row({ value: `${"a".repeat(199)}\u{1F3E0}` })]));
+  assert.deepEqual(out.rows.map((r) => r.value), ["ab", `${"a".repeat(199)}\u{1F3E0}`]);
+});
+
+test("values that clean to the same text become one key before the add", async () => {
+  const merged = mergeRows(checkRows(body([row({ value: "/a\u0000" }), row({ value: "/a" }), row({ value: "/a\uD800" })])).rows);
+  assert.deepEqual(merged.map((r) => [r.key, r.views]), [["2026-11-02|path|/a", 9]]);
+  const knex = await freshDb();
+  try {
+    await add(knex, [row({ value: "/b\u0000" }), row({ value: "/b" })]);
+    assert.deepEqual(await counts(knex), [{ key: "2026-11-02|path|/b", views: 6, visitors: 2 }]);
+  } finally {
+    await knex.destroy();
+  }
+});
+
+test("a value with an emoji still counts its visitors", async () => {
+  const knex = await freshDb();
+  try {
+    const value = `${"a".repeat(199)}\u{1F3E0}`;
+    await add(knex, [row({ dimension: "listing", value })]);
+    assert.deepEqual(await counts(knex), [{ key: `2026-11-02|listing|${value}`, views: 3, visitors: 2 }]);
   } finally {
     await knex.destroy();
   }

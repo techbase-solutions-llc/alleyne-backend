@@ -38,6 +38,19 @@ const BATCH = /^[0-9a-f]{64}#\d{1,4}$/;
 
 const keyOf = (r) => `${r.day}|${r.dimension}|${r.value}`;
 
+const CONTROL = /[\u0000-\u001f\u007f]/g;
+const LONE_SURROGATE = /^[\uD800-\uDFFF]$/;
+
+/** A value fit to store, the same rule as the site's cleanValue (src/lib/analytics-drain.ts):
+    no control characters (Postgres text cannot hold NUL), no lone surrogate halves (Postgres
+    stores them as U+FFFD, so keys stopped matching), at most 200 whole characters. */
+function cleanValue(v) {
+  return Array.from(v.replace(CONTROL, ''))
+    .filter((ch) => !LONE_SURROGATE.test(ch))
+    .slice(0, MAX_VALUE)
+    .join('');
+}
+
 /** The Barbados calendar day (UTC-4 all year) of a moment. */
 const barbadosDay = (date) => new Date(date.getTime() - BARBADOS_OFFSET_MS).toISOString().slice(0, 10);
 
@@ -66,7 +79,8 @@ function rowProblem(r) {
 
 /**
  * The batch key and rows of a request body, or the reason it is refused. One malformed row
- * refuses the whole call, so a call is never half added; an over-long value is only cut short.
+ * refuses the whole call, so a call is never half added. Values are cleaned (cleanValue): an
+ * over-long one is cut short, and a row whose value is empty once cleaned is dropped.
  */
 function checkRows(body) {
   const batch = body && body.batch;
@@ -80,25 +94,30 @@ function checkRows(body) {
   }
   return {
     batch,
-    rows: rows.map(({ day, dimension, value, views, tokens }) => ({
-      day, dimension, value: value.slice(0, MAX_VALUE), views, tokens: [...new Set(tokens)],
-    })),
+    rows: rows
+      .map(({ day, dimension, value, views, tokens }) => ({
+        day, dimension, value: cleanValue(value), views, tokens: [...new Set(tokens)],
+      }))
+      .filter((r) => r.value.length > 0),
   };
 }
 
 /** Rows with the same key added together, sorted by key. One INSERT may not touch a key twice
     (Postgres refuses it), and every call taking its row locks in key order means two calls
-    cannot wait on each other in a circle. */
+    cannot wait on each other in a circle. Keyed on the cleaned value, the text actually stored,
+    so two values that clean to the same text are one row here (review, 2 Nov 2026). */
 function mergeRows(rows) {
   const byKey = new Map();
   for (const r of rows) {
-    const key = keyOf(r);
+    const value = cleanValue(r.value);
+    if (!value) continue;
+    const key = keyOf({ ...r, value });
     const had = byKey.get(key);
     if (had) {
       had.views += r.views;
       for (const t of r.tokens) if (!had.tokens.includes(t)) had.tokens.push(t);
     } else {
-      byKey.set(key, { key, day: r.day, dimension: r.dimension, value: r.value, views: r.views, tokens: [...r.tokens] });
+      byKey.set(key, { key, day: r.day, dimension: r.dimension, value, views: r.views, tokens: [...r.tokens] });
     }
   }
   return [...byKey.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -187,5 +206,5 @@ async function addRows(knex, { batch, rows }, now = new Date()) {
 
 module.exports = {
   DIMENSIONS, MAX_ROWS, MAX_VALUE, KEEP_DAYS, TABLE, SEEN_TABLE, BATCH_TABLE,
-  keyOf, barbadosDay, checkRows, mergeRows, addRows,
+  keyOf, barbadosDay, cleanValue, checkRows, mergeRows, addRows,
 };
