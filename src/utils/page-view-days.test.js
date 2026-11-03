@@ -20,7 +20,8 @@ const body = (rows, batch = BATCH()) => ({ batch, rows });
 const NOW = new Date(Date.UTC(2026, 10, 2, 15));
 
 test("the limits and tables are the ones the site and schemas use", () => {
-  assert.deepEqual(DIMENSIONS, ["path", "source", "device", "country", "listing"]);
+  // share: listing shares from the share menu, value "<slug>|<method>" (TEC-1344).
+  assert.deepEqual(DIMENSIONS, ["path", "source", "device", "country", "listing", "share"]);
   assert.equal(MAX_ROWS, 2000);
   assert.equal(MAX_VALUE, 200);
   assert.equal(KEEP_DAYS, 8);
@@ -84,6 +85,12 @@ test("a bad day, dimension, value, count or token fails the whole delivery", () 
   ];
   for (const r of bad) assert.ok(checkRows(body([row(), r])).error, JSON.stringify(r));
   assert.ok(checkRows(body([row({ day: "2020-01-01" }), row({ day: "2100-12-31" })])).rows);
+});
+
+test("a share row (listing slug and method) is accepted like any other", () => {
+  const out = checkRows(body([row({ dimension: "share", value: "sea-grape-cottage|whatsapp", views: 2, tokens: [T1] })]));
+  assert.equal(out.error, undefined);
+  assert.deepEqual(out.rows.map((r) => [r.dimension, r.value, r.views]), [["share", "sea-grape-cottage|whatsapp", 2]]);
 });
 
 test("an over-long value is cut to 200 characters, so one row cannot sink a delivery", () => {

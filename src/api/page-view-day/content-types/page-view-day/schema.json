@@ -22,7 +22,8 @@
         "source",
         "device",
         "country",
-        "listing"
+        "listing",
+        "share"
       ],
       "required": true
     },

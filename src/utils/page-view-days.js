@@ -15,7 +15,9 @@
 // Keys are kept for KEEP_DAYS in page_view_batches; a key already there is answered as done and
 // adds nothing, so Vercel may safely deliver the same body again after a failure.
 
-const DIMENSIONS = ['path', 'source', 'device', 'country', 'listing'];
+// share: a listing shared from its Share menu, value '<slug>|<method>' (device, copy, email or
+// whatsapp), counted from the site's custom event (TEC-1344, 2 Nov 2026).
+const DIMENSIONS = ['path', 'source', 'device', 'country', 'listing', 'share'];
 const MAX_ROWS = 2000;
 // The site cuts values to the same length. The columns are text, so nothing overflows.
 const MAX_VALUE = 200;
