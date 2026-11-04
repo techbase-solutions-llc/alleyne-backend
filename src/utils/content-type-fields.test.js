@@ -147,7 +147,7 @@ test("a page-view day holds a day, dimension, value and two counts, with a uniqu
   assert.equal(s.collectionName, "page_view_days");
   assert.equal(s.options.draftAndPublish, false);
   assert.deepEqual(a.day, { type: "date", required: true });
-  assert.deepEqual(a.dimension, { type: "enumeration", enum: ["path", "source", "device", "country", "listing", "share"], required: true });
+  assert.deepEqual(a.dimension, { type: "enumeration", enum: ["path", "source", "device", "country", "listing", "share", "helpful"], required: true });
   // Text, not string: a Strapi string is varchar(255) on Postgres, and a long path in the key
   // overflowed it and rolled back the whole call (review, 2 Nov 2026).
   assert.deepEqual(a.value, { type: "text", required: true, maxLength: 200 });

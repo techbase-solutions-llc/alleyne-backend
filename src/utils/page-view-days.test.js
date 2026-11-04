@@ -21,7 +21,9 @@ const NOW = new Date(Date.UTC(2026, 10, 2, 15));
 
 test("the limits and tables are the ones the site and schemas use", () => {
   // share: listing shares from the share menu, value "<slug>|<method>" (TEC-1344).
-  assert.deepEqual(DIMENSIONS, ["path", "source", "device", "country", "listing", "share"]);
+  // helpful: the Yes and No answers to "Was this page helpful?", value "<path>|yes" or
+  // "<path>|no" (site feedback plan, 3 Nov 2026).
+  assert.deepEqual(DIMENSIONS, ["path", "source", "device", "country", "listing", "share", "helpful"]);
   assert.equal(MAX_ROWS, 2000);
   assert.equal(MAX_VALUE, 200);
   assert.equal(KEEP_DAYS, 8);
@@ -312,4 +314,21 @@ test("a value with an emoji still counts its visitors", async () => {
   } finally {
     await knex.destroy();
   }
+});
+
+test("a helpful row (page path and yes or no) is accepted, with or without visitor tokens", () => {
+  const out = checkRows(body([
+    row({ dimension: "helpful", value: "/for-sale|yes", views: 1, tokens: [] }),
+    row({ dimension: "helpful", value: "/listings/sea-grape-cottage|no", views: 2, tokens: [T1] }),
+  ]));
+  assert.equal(out.error, undefined);
+  assert.deepEqual(out.rows.map((r) => [r.dimension, r.value, r.views]), [
+    ["helpful", "/for-sale|yes", 1],
+    ["helpful", "/listings/sea-grape-cottage|no", 2],
+  ]);
+});
+
+test("an over-long helpful value is cut to 200 characters like any other", () => {
+  const out = checkRows(body([row({ dimension: "helpful", value: `/${"p".repeat(300)}|yes`, views: 1, tokens: [] })]));
+  assert.equal(out.rows[0].value.length, 200);
 });

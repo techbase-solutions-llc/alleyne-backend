@@ -23,7 +23,8 @@
         "device",
         "country",
         "listing",
-        "share"
+        "share",
+        "helpful"
       ],
       "required": true
     },

@@ -17,7 +17,9 @@
 
 // share: a listing shared from its Share menu, value '<slug>|<method>' (device, copy, email or
 // whatsapp), counted from the site's custom event (TEC-1344, 2 Nov 2026).
-const DIMENSIONS = ['path', 'source', 'device', 'country', 'listing', 'share'];
+// helpful: the Yes and No answers to "Was this page helpful?", value '<path>|yes' or '<path>|no',
+// one row per page per day and no person stored (site feedback plan, 3 Nov 2026).
+const DIMENSIONS = ['path', 'source', 'device', 'country', 'listing', 'share', 'helpful'];
 const MAX_ROWS = 2000;
 // The site cuts values to the same length. The columns are text, so nothing overflows.
 const MAX_VALUE = 200;
