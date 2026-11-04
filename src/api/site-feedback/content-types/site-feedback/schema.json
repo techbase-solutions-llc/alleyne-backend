@@ -1,0 +1,101 @@
+{
+  "kind": "collectionType",
+  "collectionName": "site_feedbacks",
+  "info": {
+    "singularName": "site-feedback",
+    "pluralName": "site-feedbacks",
+    "displayName": "SiteFeedback",
+    "description": "Website feedback: page, listing, accessibility and general reports from visitors, and the office's handling of them (site feedback plan, 3 Nov 2026). Written only by the website's server token: no role holds it."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "kind": {
+      "type": "enumeration",
+      "enum": [
+        "page",
+        "listing",
+        "accessibility",
+        "general"
+      ],
+      "required": true
+    },
+    "reason": {
+      "type": "enumeration",
+      "enum": [
+        "price",
+        "sold_or_let",
+        "photos",
+        "map",
+        "details",
+        "other"
+      ]
+    },
+    "doing": {
+      "type": "text",
+      "maxLength": 1000
+    },
+    "wrong": {
+      "type": "text",
+      "maxLength": 2000
+    },
+    "email": {
+      "type": "email"
+    },
+    "pagePath": {
+      "type": "string",
+      "maxLength": 300,
+      "required": true
+    },
+    "listing": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::canonical-listing.canonical-listing"
+    },
+    "listingRef": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "device": {
+      "type": "enumeration",
+      "enum": [
+        "phone",
+        "tablet",
+        "computer"
+      ]
+    },
+    "screenWidth": {
+      "type": "integer"
+    },
+    "signedIn": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "new",
+        "in_hand",
+        "done",
+        "no_action"
+      ],
+      "default": "new",
+      "required": true
+    },
+    "staffNote": {
+      "type": "text",
+      "maxLength": 2000
+    },
+    "handledBy": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "handledAt": {
+      "type": "datetime"
+    },
+    "summarisedAt": {
+      "type": "datetime"
+    }
+  }
+}

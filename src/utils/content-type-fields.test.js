@@ -176,3 +176,51 @@ test("seen visitor tokens and added deliveries are a day and a unique text key",
     }, api);
   }
 });
+
+// Website feedback (site feedback plan, 3 Nov 2026): page, listing, accessibility and general
+// reports from the site, with the office's handling. The website writes it with its server token
+// only (src/utils/role-permissions.js); the limits below match the site's form.
+test("a site feedback item holds the visitor's report and the office's handling of it", () => {
+  const s = schema("site-feedback");
+  assert.equal(s.kind, "collectionType");
+  assert.equal(s.collectionName, "site_feedbacks");
+  assert.equal(s.info.singularName, "site-feedback");
+  assert.equal(s.info.pluralName, "site-feedbacks");
+  assert.match(s.info.description, /server token/);
+  assert.equal(s.options.draftAndPublish, false);
+  const a = s.attributes;
+  assert.deepEqual(a.kind, { type: "enumeration", enum: ["page", "listing", "accessibility", "general"], required: true });
+  assert.deepEqual(a.reason, { type: "enumeration", enum: ["price", "sold_or_let", "photos", "map", "details", "other"] });
+  assert.deepEqual(a.doing, { type: "text", maxLength: 1000 });
+  assert.deepEqual(a.wrong, { type: "text", maxLength: 2000 });
+  assert.deepEqual(a.email, { type: "email" });
+  assert.deepEqual(a.pagePath, { type: "string", maxLength: 300, required: true });
+  assert.deepEqual(a.listing, { type: "relation", relation: "manyToOne", target: "api::canonical-listing.canonical-listing" });
+  assert.deepEqual(a.listingRef, { type: "string", maxLength: 40 });
+  assert.deepEqual(a.device, { type: "enumeration", enum: ["phone", "tablet", "computer"] });
+  assert.deepEqual(a.screenWidth, { type: "integer" });
+  assert.deepEqual(a.signedIn, { type: "boolean", default: false });
+  assert.deepEqual(a.status, { type: "enumeration", enum: ["new", "in_hand", "done", "no_action"], default: "new", required: true });
+  assert.deepEqual(a.staffNote, { type: "text", maxLength: 2000 });
+  assert.deepEqual(a.handledBy, { type: "string", maxLength: 120 });
+  assert.deepEqual(a.handledAt, { type: "datetime" });
+  assert.deepEqual(a.summarisedAt, { type: "datetime" });
+  assert.deepEqual(Object.keys(a).sort(), [
+    "device", "doing", "email", "handledAt", "handledBy", "kind", "listing", "listingRef", "pagePath",
+    "reason", "screenWidth", "signedIn", "staffNote", "status", "summarisedAt", "wrong",
+  ]);
+});
+
+test("a listing carries no link back to its feedback, so reading a listing never brings it", () => {
+  const listing = schema("canonical-listing").attributes;
+  for (const [name, attr] of Object.entries(listing))
+    assert.notEqual(attr.target, "api::site-feedback.site-feedback", `canonical-listing.${name} points at site feedback`);
+});
+
+test("the site feedback API is the core one, like the notes API", () => {
+  const dir = path.join(__dirname, "..", "api", "site-feedback");
+  for (const part of ["controllers", "routes", "services"]) {
+    const src = require("node:fs").readFileSync(path.join(dir, part, "site-feedback.js"), "utf8");
+    assert.match(src, /api::site-feedback\.site-feedback/, part);
+  }
+});

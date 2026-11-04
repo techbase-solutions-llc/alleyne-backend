@@ -120,3 +120,49 @@ test("every role's grant on the daily visitor counts is found too (TEC-1344)", (
   ];
   assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21, 32, 33]);
 });
+
+// Website feedback (site feedback plan, 3 Nov 2026): visitors' reports and staff notes on them.
+// No role creates, reads, changes or deletes them; the website writes and reads them with its
+// server token after its own checks, exactly as the notes.
+test("no role creates, reads, changes or deletes site feedback: the website's server token only", () => {
+  const { SITE_FEEDBACK_ACTIONS, SITE_FEEDBACK_PREFIX } = require("./role-permissions");
+  assert.equal(SITE_FEEDBACK_PREFIX, "api::site-feedback.site-feedback.");
+  assert.deepEqual(SITE_FEEDBACK_ACTIONS, ["find", "findOne", "create", "update", "delete"].map((a) => `api::site-feedback.site-feedback.${a}`));
+  for (const a of SITE_FEEDBACK_ACTIONS) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+  assert.equal(PUBLIC_PERMISSIONS.some((a) => a.startsWith(SITE_FEEDBACK_PREFIX)), false);
+});
+
+test("every role's site-feedback grant is found on boot, custom and future roles and actions included", () => {
+  const { officeOnlyGrants } = require("./role-permissions");
+  const roles = [
+    { id: 1, name: "Public", permissions: [
+      { id: 11, action: "api::site-feedback.site-feedback.create" },
+      { id: 12, action: "api::article.article.find" },
+    ] },
+    { id: 2, name: "Authenticated", permissions: [
+      { id: 21, action: "api::site-feedback.site-feedback.find" },
+      { id: 22, action: "api::site-feedback.site-feedback.findOne" },
+    ] },
+    { id: 3, name: "Agent", permissions: [
+      { id: 31, action: "api::site-feedback.site-feedback.update" },
+      { id: 32, action: "api::site-feedback.site-feedback.delete" },
+    ] },
+    // An action added later is caught; a look-alike content type is not.
+    { id: 4, name: "Moderator", permissions: [
+      { id: 41, action: "api::site-feedback.site-feedback.export" },
+      { id: 42, action: "api::site-feedback-archive.site-feedback-archive.find" },
+    ] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21, 22, 31, 32, 41]);
+  assert.equal(officeOnlyGrants(roles).find((p) => p.id === 11).role, "Public");
+});
+
+test("the Authenticated role's revoke list on boot covers site feedback, and nothing grants it", () => {
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.js"), "utf8");
+  assert.ok(src.includes("...SITE_FEEDBACK_ACTIONS"), "src/index.js must revoke SITE_FEEDBACK_ACTIONS from Authenticated");
+  // No literal grant of any site-feedback action anywhere in the boot code.
+  assert.equal(/['"]api::site-feedback\.site-feedback\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a site-feedback action");
+});
