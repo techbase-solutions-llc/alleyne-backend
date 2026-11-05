@@ -166,3 +166,50 @@ test("the Authenticated role's revoke list on boot covers site feedback, and not
   // No literal grant of any site-feedback action anywhere in the boot code.
   assert.equal(/['"]api::site-feedback\.site-feedback\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a site-feedback action");
 });
+
+// Client accounts (client accounts plan, 5 Nov 2026, sections 4 and 5): the office's record of
+// what staff did to each account, and the endpoint that reads one account's consent fields.
+// No role holds either; the website reaches them with its server token only.
+test("no role reads or writes client actions or reads client consent: the website's server token only", () => {
+  const { CLIENT_ACTION_ACTIONS, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_ACTIONS, CLIENT_CONSENT_PREFIX } = require("./role-permissions");
+  assert.equal(CLIENT_ACTION_PREFIX, "api::client-action.client-action.");
+  assert.deepEqual(CLIENT_ACTION_ACTIONS, ["find", "findOne", "create", "update", "delete"].map((a) => `api::client-action.client-action.${a}`));
+  assert.equal(CLIENT_CONSENT_PREFIX, "api::client-consent.client-consent.");
+  assert.deepEqual(CLIENT_CONSENT_ACTIONS, ["api::client-consent.client-consent.findOne"]);
+  for (const a of [...CLIENT_ACTION_ACTIONS, ...CLIENT_CONSENT_ACTIONS]) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+  assert.equal(PUBLIC_PERMISSIONS.some((a) => a.startsWith(CLIENT_ACTION_PREFIX) || a.startsWith(CLIENT_CONSENT_PREFIX)), false);
+});
+
+test("every role's client-action and client-consent grant is found on boot, custom and future roles and actions included", () => {
+  const { officeOnlyGrants } = require("./role-permissions");
+  const roles = [
+    { id: 1, name: "Public", permissions: [
+      { id: 11, action: "api::client-consent.client-consent.findOne" },
+      { id: 12, action: "api::article.article.find" },
+    ] },
+    { id: 2, name: "Authenticated", permissions: [
+      { id: 21, action: "api::client-action.client-action.find" },
+      { id: 22, action: "api::client-action.client-action.create" },
+    ] },
+    { id: 3, name: "AgencyOwner", permissions: [
+      { id: 31, action: "api::client-action.client-action.delete" },
+      { id: 32, action: "api::client-consent.client-consent.findOne" },
+    ] },
+    // An action added later is caught; a look-alike content type is not.
+    { id: 4, name: "Moderator", permissions: [
+      { id: 41, action: "api::client-consent.client-consent.find" },
+      { id: 42, action: "api::client-action-archive.client-action-archive.find" },
+    ] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21, 22, 31, 32, 41]);
+});
+
+test("the Authenticated role's revoke list on boot covers client actions and consent, and nothing grants them", () => {
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.js"), "utf8");
+  assert.ok(src.includes("...CLIENT_ACTION_ACTIONS"), "src/index.js must revoke CLIENT_ACTION_ACTIONS from Authenticated");
+  assert.ok(src.includes("...CLIENT_CONSENT_ACTIONS"), "src/index.js must revoke CLIENT_CONSENT_ACTIONS from Authenticated");
+  assert.equal(/['"]api::client-(action|consent)\.client-(action|consent)\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a client-action or client-consent action");
+});

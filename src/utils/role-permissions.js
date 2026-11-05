@@ -39,6 +39,14 @@ const SITE_FEEDBACK_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].
   (a) => `api::site-feedback.site-feedback.${a}`
 );
 
+// Client accounts (client accounts plan, 5 Nov 2026): the office's record of what staff did to
+// each client's account, and one account's private consent fields. The website writes and reads
+// both with its server token after checking the staff member's permission; no role holds them.
+const CLIENT_ACTION_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].map(
+  (a) => `api::client-action.client-action.${a}`
+);
+const CLIENT_CONSENT_ACTIONS = ['api::client-consent.client-consent.findOne'];
+
 // Public grants that earlier deploys created and that must no longer exist. The grant loop
 // only ever adds, so they are deleted on every boot; switching one off in the admin panel
 // did not stick before (review, 8 Oct 2026).
@@ -50,6 +58,8 @@ const PUBLIC_REVOKED = [
   ...LISTING_NOTE_ACTIONS,
   ...LISTING_TRANSACTION_ACTIONS,
   ...SITE_FEEDBACK_ACTIONS,
+  ...CLIENT_ACTION_ACTIONS,
+  ...CLIENT_CONSENT_ACTIONS,
 ];
 
 /** The permission rows a role holds whose action is on the revoke list. */
@@ -82,11 +92,15 @@ const PAGE_VIEW_SEEN_PREFIX = 'api::page-view-seen.page-view-seen.';
 const PAGE_VIEW_BATCH_PREFIX = 'api::page-view-batch.page-view-batch.';
 // Website feedback, every action today and any added later.
 const SITE_FEEDBACK_PREFIX = 'api::site-feedback.site-feedback.';
+// The client action history and the consent endpoint, every action today and any added later.
+const CLIENT_ACTION_PREFIX = 'api::client-action.client-action.';
+const CLIENT_CONSENT_PREFIX = 'api::client-consent.client-consent.';
 
 /** As listingNoteGrants, for every office-only API: the notes, the transactions, the daily
-    visitor counts with their tokens and delivery keys, and the website feedback. */
+    visitor counts with their tokens and delivery keys, the website feedback, and the client
+    action history and consent endpoint. */
 function officeOnlyGrants(roles) {
-  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX]);
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_PREFIX]);
 }
 
 function grantsOn(roles, prefixes) {
@@ -107,6 +121,10 @@ module.exports = {
   PAGE_VIEW_DAY_PREFIX,
   SITE_FEEDBACK_ACTIONS,
   SITE_FEEDBACK_PREFIX,
+  CLIENT_ACTION_ACTIONS,
+  CLIENT_ACTION_PREFIX,
+  CLIENT_CONSENT_ACTIONS,
+  CLIENT_CONSENT_PREFIX,
   toRevoke,
   listingNoteGrants,
   officeOnlyGrants,

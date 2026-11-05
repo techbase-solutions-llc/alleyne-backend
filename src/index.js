@@ -2,7 +2,7 @@
 const { emailConfirmationOn } = require('./utils/email-confirmation');
 
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
-const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, SITE_FEEDBACK_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
+const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, SITE_FEEDBACK_ACTIONS, CLIENT_ACTION_ACTIONS, CLIENT_CONSENT_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
 const { TEMPLATE_VERSION, nextEmailSettings, siteUrl } = require('./utils/account-emails');
 
@@ -243,6 +243,9 @@ module.exports = {
       ...LISTING_TRANSACTION_ACTIONS,
       // Website feedback likewise (site feedback plan, 3 Nov 2026).
       ...SITE_FEEDBACK_ACTIONS,
+      // Client action history and client consent likewise (client accounts plan, 5 Nov 2026).
+      ...CLIENT_ACTION_ACTIONS,
+      ...CLIENT_CONSENT_ACTIONS,
     ];
     // Named authToRevoke: `toRevoke` is the helper from role-permissions, used for the
     // Public role below (a local of the same name stopped the backend starting; review).
@@ -300,7 +303,7 @@ module.exports = {
       }
     }
 
-    // ── Listing notes, transactions, visitor counts and feedback: no role at all (TEC-1909, TEC-1344)
+    // ── Listing notes, transactions, visitor counts, feedback and client records: no role at all (TEC-1909, TEC-1344)
     // The Public and Authenticated lists above only cover those two roles. A notes,
     // transactions or page-view-day box ticked for Agent, AgencyOwner, AgencyStaff, Host, Moderator or any
     // later role would let that role read every office record with its own JWT, so every
