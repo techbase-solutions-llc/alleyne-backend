@@ -1,0 +1,54 @@
+{
+  "kind": "collectionType",
+  "collectionName": "client_actions",
+  "info": {
+    "singularName": "client-action",
+    "pluralName": "client-actions",
+    "displayName": "ClientAction",
+    "description": "What staff did to a client's account, when, why and by whom, with a short before and after (client accounts plan, 5 Nov 2026). Kept after the account is closed. Written and read only by the website's server token: no role holds it."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "clientId": {
+      "type": "integer",
+      "required": true
+    },
+    "clientEmail": {
+      "type": "email"
+    },
+    "action": {
+      "type": "enumeration",
+      "enum": [
+        "resend_confirmation",
+        "password_reset",
+        "edit_details",
+        "marketing_off",
+        "suspend",
+        "restore",
+        "close"
+      ],
+      "required": true
+    },
+    "reason": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "staffName": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "staffUser": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "before": {
+      "type": "json"
+    },
+    "after": {
+      "type": "json"
+    }
+  }
+}

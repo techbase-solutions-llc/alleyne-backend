@@ -125,7 +125,8 @@
             "type": "enumeration",
             "enum": [
                 "profile",
-                "unsubscribe"
+                "unsubscribe",
+                "office"
             ],
             "private": true
         },

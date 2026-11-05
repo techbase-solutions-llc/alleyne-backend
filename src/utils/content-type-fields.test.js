@@ -52,7 +52,8 @@ test("an account keeps the wording, version and place of its marketing consent, 
   assert.deepEqual(user.marketingConsentVersion, { type: "string", private: true });
   assert.deepEqual(user.marketingConsentSource, { type: "enumeration", enum: ["signup", "profile"], private: true });
   assert.deepEqual(user.marketingOptOutAt, { type: "datetime", private: true });
-  assert.deepEqual(user.marketingOptOutSource, { type: "enumeration", enum: ["profile", "unsubscribe"], private: true });
+  // "office" added by the client accounts plan (5 Nov 2026): staff withdrew it at the client's request.
+  assert.deepEqual(user.marketingOptOutSource, { type: "enumeration", enum: ["profile", "unsubscribe", "office"], private: true });
   // The date given is private too (end-to-end run, 26 Oct): no API answer needs it.
   assert.deepEqual(user.marketingOptIn, { type: "boolean", default: false });
   assert.deepEqual(user.marketingOptInAt, { type: "datetime", private: true });
@@ -223,4 +224,64 @@ test("the site feedback API is the core one, like the notes API", () => {
     const src = require("node:fs").readFileSync(path.join(dir, part, "site-feedback.js"), "utf8");
     assert.match(src, /api::site-feedback\.site-feedback/, part);
   }
+});
+
+// Client accounts (client accounts plan, 5 Nov 2026, section 4): what staff did to each client's
+// account, kept after the account is closed. Held by no role (src/utils/role-permissions.js);
+// the website writes and reads it with its server token. createdAt is the time of the action.
+test("a client action records the account, what was done, why, by whom, and the change", () => {
+  const s = schema("client-action");
+  assert.equal(s.kind, "collectionType");
+  assert.equal(s.collectionName, "client_actions");
+  assert.equal(s.info.singularName, "client-action");
+  assert.equal(s.info.pluralName, "client-actions");
+  assert.match(s.info.description, /server token/);
+  assert.equal(s.options.draftAndPublish, false);
+  const a = s.attributes;
+  // An id, not a relation: the record outlives the account it describes.
+  assert.deepEqual(a.clientId, { type: "integer", required: true });
+  assert.deepEqual(a.clientEmail, { type: "email" });
+  assert.deepEqual(a.action, {
+    type: "enumeration",
+    enum: ["resend_confirmation", "password_reset", "edit_details", "marketing_off", "suspend", "restore", "close"],
+    required: true,
+  });
+  assert.deepEqual(a.reason, { type: "text", maxLength: 500 });
+  assert.deepEqual(a.staffName, { type: "string", maxLength: 120 });
+  assert.deepEqual(a.staffUser, { type: "relation", relation: "manyToOne", target: "plugin::users-permissions.user" });
+  assert.deepEqual(a.before, { type: "json" });
+  assert.deepEqual(a.after, { type: "json" });
+  assert.deepEqual(Object.keys(a).sort(), ["action", "after", "before", "clientEmail", "clientId", "reason", "staffName", "staffUser"]);
+});
+
+test("an account carries no link to client actions, so reading an account never brings them", () => {
+  const user = require(path.join(__dirname, "..", "extensions", "users-permissions", "content-types", "user", "schema.json")).attributes;
+  for (const [name, attr] of Object.entries(user))
+    assert.notEqual(attr.target, "api::client-action.client-action", `user.${name} points at client actions`);
+});
+
+test("the office can record a marketing withdrawal made on the client's behalf", () => {
+  const user = require(path.join(__dirname, "..", "extensions", "users-permissions", "content-types", "user", "schema.json")).attributes;
+  assert.deepEqual(user.marketingOptOutSource, { type: "enumeration", enum: ["profile", "unsubscribe", "office"], private: true });
+  // Consent itself still only comes from the person: the office is never a consent source.
+  assert.equal(user.marketingConsentSource.enum.includes("office"), false);
+});
+
+test("the client action API is the core one, like the notes API", () => {
+  const dir = path.join(__dirname, "..", "api", "client-action");
+  for (const part of ["controllers", "routes", "services"]) {
+    const src = require("node:fs").readFileSync(path.join(dir, part, "client-action.js"), "utf8");
+    assert.match(src, /api::client-action\.client-action/, part);
+  }
+});
+
+test("the client consent endpoint is one GET behind the server-token policy, with Strapi's auth left on", () => {
+  const { routes } = require(path.join(__dirname, "..", "api", "client-consent", "routes", "client-consent.js"));
+  assert.equal(routes.length, 1);
+  const [r] = routes;
+  assert.equal(r.method, "GET");
+  assert.equal(r.path, "/client-consents/:userId");
+  assert.equal(r.handler, "client-consent.findOne");
+  assert.deepEqual(r.config.policies, ["api::client-consent.server-token-only"]);
+  assert.notEqual(r.config.auth, false);
 });
