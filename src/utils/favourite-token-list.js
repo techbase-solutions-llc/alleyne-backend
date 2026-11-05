@@ -1,7 +1,7 @@
 'use strict';
 // The website's daily alert run reads every saved property with its server token (TEC-1909,
 // plan D3): owner id, listing id and the price and status the owner was last told about, so
-// each change is emailed once. Nothing else leaves: no names, emails or listing details.
+// each change is emailed once, and when it was saved (the office's Clients list). Nothing else leaves: no names, emails or listing details.
 
 /** A request made with the website's full-access server token, not by a signed-in user. A
     read-only or custom token is not enough, as for the saved-search list (review, 27 Oct). */
@@ -13,6 +13,9 @@ function tokenListPage(rows, { page, pageSize, total }) {
     data: rows.map((r) => ({
       id: r.id,
       attributes: {
+        // When it was saved, for the last activity on the office's Clients list (client accounts
+        // plan, 5 Nov 2026).
+        createdAt: r.createdAt ?? null,
         notifiedPriceMinor: r.notifiedPriceMinor ?? null,
         notifiedStatus: r.notifiedStatus ?? null,
         user: { data: r.user?.id ? { id: r.user.id } : null },

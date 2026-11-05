@@ -46,6 +46,8 @@ const CLIENT_ACTION_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].
   (a) => `api::client-action.client-action.${a}`
 );
 const CLIENT_CONSENT_ACTIONS = ['api::client-consent.client-consent.findOne'];
+// One client's saved properties and searches for the client page (plan section 2), likewise.
+const CLIENT_SAVED_ACTIONS = ['api::client-saved.client-saved.findOne'];
 
 // Public grants that earlier deploys created and that must no longer exist. The grant loop
 // only ever adds, so they are deleted on every boot; switching one off in the admin panel
@@ -60,6 +62,7 @@ const PUBLIC_REVOKED = [
   ...SITE_FEEDBACK_ACTIONS,
   ...CLIENT_ACTION_ACTIONS,
   ...CLIENT_CONSENT_ACTIONS,
+  ...CLIENT_SAVED_ACTIONS,
 ];
 
 /** The permission rows a role holds whose action is on the revoke list. */
@@ -95,12 +98,13 @@ const SITE_FEEDBACK_PREFIX = 'api::site-feedback.site-feedback.';
 // The client action history and the consent endpoint, every action today and any added later.
 const CLIENT_ACTION_PREFIX = 'api::client-action.client-action.';
 const CLIENT_CONSENT_PREFIX = 'api::client-consent.client-consent.';
+const CLIENT_SAVED_PREFIX = 'api::client-saved.client-saved.';
 
 /** As listingNoteGrants, for every office-only API: the notes, the transactions, the daily
     visitor counts with their tokens and delivery keys, the website feedback, and the client
-    action history and consent endpoint. */
+    action history, the consent endpoint and the saved-things endpoint. */
 function officeOnlyGrants(roles) {
-  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_PREFIX]);
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_PREFIX, CLIENT_SAVED_PREFIX]);
 }
 
 function grantsOn(roles, prefixes) {
@@ -125,6 +129,8 @@ module.exports = {
   CLIENT_ACTION_PREFIX,
   CLIENT_CONSENT_ACTIONS,
   CLIENT_CONSENT_PREFIX,
+  CLIENT_SAVED_ACTIONS,
+  CLIENT_SAVED_PREFIX,
   toRevoke,
   listingNoteGrants,
   officeOnlyGrants,

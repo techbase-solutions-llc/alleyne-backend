@@ -18,12 +18,14 @@ test('only a full-access API token counts as the server, as for saved searches (
 
 test('a page lists owner, listing and last told values, in the Strapi 4 shape', () => {
   const rows = [
-    { id: 7, notifiedPriceMinor: '450000000', notifiedStatus: 'active', user: { id: 3, email: 'x@y.z', username: 'Ann' }, listing: { id: 31, title: 'Villa' } },
+    { id: 7, createdAt: '2026-10-30T09:00:00.000Z', notifiedPriceMinor: '450000000', notifiedStatus: 'active', user: { id: 3, email: 'x@y.z', username: 'Ann' }, listing: { id: 31, title: 'Villa' } },
     { id: 8, notifiedPriceMinor: null, notifiedStatus: null, user: null, listing: { id: 32 } },
   ];
   const out = tokenListPage(rows, { page: 2, pageSize: 100, total: 108 });
-  assert.deepEqual(out.data[0], { id: 7, attributes: { notifiedPriceMinor: '450000000', notifiedStatus: 'active', user: { data: { id: 3 } }, listing: { data: { id: 31 } } } });
+  assert.deepEqual(out.data[0], { id: 7, attributes: { createdAt: '2026-10-30T09:00:00.000Z', notifiedPriceMinor: '450000000', notifiedStatus: 'active', user: { data: { id: 3 } }, listing: { data: { id: 31 } } } });
   assert.deepEqual(out.data[1].attributes.user, { data: null });
+  // When it was saved, for the office's Clients list (client accounts plan, 5 Nov 2026); null when unknown.
+  assert.equal(out.data[1].attributes.createdAt, null);
   assert.deepEqual(out.meta.pagination, { page: 2, pageSize: 100, pageCount: 2, total: 108 });
   assert.doesNotMatch(JSON.stringify(out), /x@y\.z|Ann|Villa/);
 });

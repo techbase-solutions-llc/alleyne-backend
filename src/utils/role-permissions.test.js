@@ -213,3 +213,28 @@ test("the Authenticated role's revoke list on boot covers client actions and con
   assert.ok(src.includes("...CLIENT_CONSENT_ACTIONS"), "src/index.js must revoke CLIENT_CONSENT_ACTIONS from Authenticated");
   assert.equal(/['"]api::client-(action|consent)\.client-(action|consent)\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a client-action or client-consent action");
 });
+
+// One client's saved properties and searches for the office (client accounts plan, 5 Nov 2026,
+// section 2): held by no role, exactly as the consent endpoint.
+test("no role reads a client's saved things: the website's server token only", () => {
+  const { CLIENT_SAVED_ACTIONS, CLIENT_SAVED_PREFIX, officeOnlyGrants } = require("./role-permissions");
+  assert.equal(CLIENT_SAVED_PREFIX, "api::client-saved.client-saved.");
+  assert.deepEqual(CLIENT_SAVED_ACTIONS, ["api::client-saved.client-saved.findOne"]);
+  for (const a of CLIENT_SAVED_ACTIONS) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+  assert.equal(PUBLIC_PERMISSIONS.some((a) => a.startsWith(CLIENT_SAVED_PREFIX)), false);
+  const roles = [
+    { id: 1, name: "Public", permissions: [{ id: 11, action: "api::client-saved.client-saved.findOne" }] },
+    { id: 2, name: "Agent", permissions: [
+      { id: 21, action: "api::client-saved.client-saved.find" },
+      { id: 22, action: "api::client-saved-archive.client-saved-archive.find" },
+      { id: 23, action: "api::favorite.favorite.find" },
+    ] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21]);
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.js"), "utf8");
+  assert.ok(src.includes("...CLIENT_SAVED_ACTIONS"), "src/index.js must revoke CLIENT_SAVED_ACTIONS from Authenticated");
+  assert.equal(/['"]api::client-saved\.client-saved\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a client-saved action");
+});
