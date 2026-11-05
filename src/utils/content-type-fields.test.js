@@ -251,7 +251,10 @@ test("a client action records the account, what was done, why, by whom, and the 
   assert.deepEqual(a.staffUser, { type: "relation", relation: "manyToOne", target: "plugin::users-permissions.user" });
   assert.deepEqual(a.before, { type: "json" });
   assert.deepEqual(a.after, { type: "json" });
-  assert.deepEqual(Object.keys(a).sort(), ["action", "after", "before", "clientEmail", "clientId", "reason", "staffName", "staffUser"]);
+  // Whether the change went through: a row is never deleted when it did not, it is marked
+  // (review, 5 Nov 2026). Rows written before the field existed read as done.
+  assert.deepEqual(a.outcome, { type: "enumeration", enum: ["done", "failed", "unknown"], default: "done" });
+  assert.deepEqual(Object.keys(a).sort(), ["action", "after", "before", "clientEmail", "clientId", "outcome", "reason", "staffName", "staffUser"]);
 });
 
 test("an account carries no link to client actions, so reading an account never brings them", () => {

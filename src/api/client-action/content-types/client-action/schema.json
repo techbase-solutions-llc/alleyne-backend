@@ -5,7 +5,7 @@
     "singularName": "client-action",
     "pluralName": "client-actions",
     "displayName": "ClientAction",
-    "description": "What staff did to a client's account, when, why and by whom, with a short before and after (client accounts plan, 5 Nov 2026). Kept after the account is closed. Written and read only by the website's server token: no role holds it."
+    "description": "What staff did to a client's account, when, why and by whom, with a short before and after (client accounts plan, 5 Nov 2026). Kept after the account is closed; outcome says whether the change went through. Written and read only by the website's server token: no role holds it."
   },
   "options": {
     "draftAndPublish": false
@@ -49,6 +49,15 @@
     },
     "after": {
       "type": "json"
+    },
+    "outcome": {
+      "type": "enumeration",
+      "enum": [
+        "done",
+        "failed",
+        "unknown"
+      ],
+      "default": "done"
     }
   }
 }
