@@ -320,8 +320,10 @@ test("a journal post holds its title, address, status, schedule, department, cov
   assert.deepEqual(a.firstPublishedAt, { type: "datetime" });
   // Unsaved changes to a post on the website, kept for the staff preview only (8 Nov 2026).
   assert.deepEqual(a.previewJson, { type: "json" });
+  // The last change to the content; keeping a preview does not set it (review, 8 Nov 2026).
+  assert.deepEqual(a.contentUpdatedAt, { type: "datetime" });
   assert.deepEqual(Object.keys(a).sort(), [
-    "authorName", "authorUserId", "blocks", "category", "coverAlt", "coverUrl", "createdByName", "department",
+    "authorName", "authorUserId", "blocks", "category", "contentUpdatedAt", "coverAlt", "coverUrl", "createdByName", "department",
     "description", "displayDate", "firstPublishedAt", "listed", "oldPath", "previewJson", "publishAt", "slug", "status", "title", "updatedByName",
   ]);
 });

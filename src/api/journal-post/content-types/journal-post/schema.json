@@ -90,6 +90,9 @@
     },
     "previewJson": {
       "type": "json"
+    },
+    "contentUpdatedAt": {
+      "type": "datetime"
     }
   }
 }
