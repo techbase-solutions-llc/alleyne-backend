@@ -318,9 +318,11 @@ test("a journal post holds its title, address, status, schedule, department, cov
   assert.deepEqual(a.createdByName, { type: "string" });
   assert.deepEqual(a.updatedByName, { type: "string" });
   assert.deepEqual(a.firstPublishedAt, { type: "datetime" });
+  // Unsaved changes to a post on the website, kept for the staff preview only (8 Nov 2026).
+  assert.deepEqual(a.previewJson, { type: "json" });
   assert.deepEqual(Object.keys(a).sort(), [
     "authorName", "authorUserId", "blocks", "category", "coverAlt", "coverUrl", "createdByName", "department",
-    "description", "displayDate", "firstPublishedAt", "listed", "oldPath", "publishAt", "slug", "status", "title", "updatedByName",
+    "description", "displayDate", "firstPublishedAt", "listed", "oldPath", "previewJson", "publishAt", "slug", "status", "title", "updatedByName",
   ]);
 });
 

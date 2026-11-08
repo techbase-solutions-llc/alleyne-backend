@@ -87,6 +87,9 @@
     },
     "firstPublishedAt": {
       "type": "datetime"
+    },
+    "previewJson": {
+      "type": "json"
     }
   }
 }
