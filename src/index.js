@@ -2,7 +2,7 @@
 const { emailConfirmationOn } = require('./utils/email-confirmation');
 
 // Public role grants and the grants every boot removes (review, 8 Oct 2026).
-const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, SITE_FEEDBACK_ACTIONS, CLIENT_ACTION_ACTIONS, CLIENT_CONSENT_ACTIONS, CLIENT_SAVED_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
+const { PUBLIC_PERMISSIONS, PUBLIC_REVOKED, LISTING_NOTE_ACTIONS, LISTING_TRANSACTION_ACTIONS, SITE_FEEDBACK_ACTIONS, CLIENT_ACTION_ACTIONS, CLIENT_CONSENT_ACTIONS, CLIENT_SAVED_ACTIONS, JOURNAL_POST_ACTIONS, toRevoke, officeOnlyGrants } = require('./utils/role-permissions');
 const { trustLastProxyHop } = require('./utils/client-ip');
 const { TEMPLATE_VERSION, nextEmailSettings, siteUrl } = require('./utils/account-emails');
 
@@ -247,6 +247,8 @@ module.exports = {
       ...CLIENT_ACTION_ACTIONS,
       ...CLIENT_CONSENT_ACTIONS,
       ...CLIENT_SAVED_ACTIONS,
+      // Journal posts likewise (journal publishing plan, 7 Nov 2026; TEC-2138).
+      ...JOURNAL_POST_ACTIONS,
     ];
     // Named authToRevoke: `toRevoke` is the helper from role-permissions, used for the
     // Public role below (a local of the same name stopped the backend starting; review).

@@ -1,0 +1,92 @@
+{
+  "kind": "collectionType",
+  "collectionName": "journal_posts",
+  "info": {
+    "singularName": "journal-post",
+    "pluralName": "journal-posts",
+    "displayName": "JournalPost",
+    "description": "Journal posts shown on the website's Journal: drafts, posts ready for review, scheduled, published and unpublished posts, with their text as blocks (journal publishing plan, 7 Nov 2026; TEC-2138). Staff write them in the back office. Written only by the website's server token: no role holds it."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "maxLength": 160
+    },
+    "slug": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "maxLength": 100
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "draft",
+        "review",
+        "published",
+        "unpublished"
+      ],
+      "default": "draft"
+    },
+    "publishAt": {
+      "type": "datetime"
+    },
+    "displayDate": {
+      "type": "date",
+      "required": true
+    },
+    "department": {
+      "type": "enumeration",
+      "enum": [
+        "sales",
+        "lettings",
+        "holiday",
+        "agency"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "authorName": {
+      "type": "string"
+    },
+    "authorUserId": {
+      "type": "integer"
+    },
+    "coverUrl": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "coverAlt": {
+      "type": "string"
+    },
+    "blocks": {
+      "type": "json"
+    },
+    "description": {
+      "type": "text",
+      "maxLength": 300
+    },
+    "listed": {
+      "type": "boolean",
+      "default": true
+    },
+    "oldPath": {
+      "type": "string"
+    },
+    "createdByName": {
+      "type": "string"
+    },
+    "updatedByName": {
+      "type": "string"
+    },
+    "firstPublishedAt": {
+      "type": "datetime"
+    }
+  }
+}

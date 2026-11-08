@@ -288,3 +288,46 @@ test("the client consent endpoint is one GET behind the server-token policy, wit
   assert.deepEqual(r.config.policies, ["api::client-consent.server-token-only"]);
   assert.notEqual(r.config.auth, false);
 });
+// Journal posts (journal publishing plan, 7 Nov 2026; TEC-2138): the fields the website's journal
+// model reads and writes (postFromRecord and postToRecord in src/lib/journal-model.ts). Written by
+// the server token only (src/utils/role-permissions.js).
+test("a journal post holds its title, address, status, schedule, department, cover, blocks and names", () => {
+  const s = schema("journal-post");
+  assert.equal(s.kind, "collectionType");
+  assert.equal(s.collectionName, "journal_posts");
+  assert.equal(s.info.singularName, "journal-post");
+  assert.equal(s.info.pluralName, "journal-posts");
+  assert.match(s.info.description, /server token/);
+  assert.equal(s.options.draftAndPublish, false);
+  const a = s.attributes;
+  assert.deepEqual(a.title, { type: "string", required: true, maxLength: 160 });
+  assert.deepEqual(a.slug, { type: "string", required: true, unique: true, maxLength: 100 });
+  assert.deepEqual(a.status, { type: "enumeration", enum: ["draft", "review", "published", "unpublished"], default: "draft" });
+  assert.deepEqual(a.publishAt, { type: "datetime" });
+  assert.deepEqual(a.displayDate, { type: "date", required: true });
+  assert.deepEqual(a.department, { type: "enumeration", enum: ["sales", "lettings", "holiday", "agency"] });
+  assert.deepEqual(a.category, { type: "string", maxLength: 40 });
+  assert.deepEqual(a.authorName, { type: "string" });
+  assert.deepEqual(a.authorUserId, { type: "integer" });
+  assert.deepEqual(a.coverUrl, { type: "string", maxLength: 2000 });
+  assert.deepEqual(a.coverAlt, { type: "string" });
+  assert.deepEqual(a.blocks, { type: "json" });
+  assert.deepEqual(a.description, { type: "text", maxLength: 300 });
+  assert.deepEqual(a.listed, { type: "boolean", default: true });
+  assert.deepEqual(a.oldPath, { type: "string" });
+  assert.deepEqual(a.createdByName, { type: "string" });
+  assert.deepEqual(a.updatedByName, { type: "string" });
+  assert.deepEqual(a.firstPublishedAt, { type: "datetime" });
+  assert.deepEqual(Object.keys(a).sort(), [
+    "authorName", "authorUserId", "blocks", "category", "coverAlt", "coverUrl", "createdByName", "department",
+    "description", "displayDate", "firstPublishedAt", "listed", "oldPath", "publishAt", "slug", "status", "title", "updatedByName",
+  ]);
+});
+
+test("the journal post API is the core one, like the notes API", () => {
+  const dir = path.join(__dirname, "..", "api", "journal-post");
+  for (const part of ["controllers", "routes", "services"]) {
+    const src = require("node:fs").readFileSync(path.join(dir, part, "journal-post.js"), "utf8");
+    assert.match(src, /api::journal-post\.journal-post/, part);
+  }
+});

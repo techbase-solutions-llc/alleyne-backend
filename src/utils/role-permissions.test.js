@@ -238,3 +238,48 @@ test("no role reads a client's saved things: the website's server token only", (
   assert.ok(src.includes("...CLIENT_SAVED_ACTIONS"), "src/index.js must revoke CLIENT_SAVED_ACTIONS from Authenticated");
   assert.equal(/['"]api::client-saved\.client-saved\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a client-saved action");
 });
+// Journal posts (journal publishing plan, 7 Nov 2026; TEC-2138): drafts, posts ready for review,
+// scheduled and published posts. No role creates, reads, changes or deletes them; the website and
+// the back office reach them with the server token only, so a draft or a scheduled post is never
+// readable before its time.
+test("no role creates, reads, changes or deletes journal posts: the website's server token only", () => {
+  const { JOURNAL_POST_ACTIONS, JOURNAL_POST_PREFIX } = require("./role-permissions");
+  assert.equal(JOURNAL_POST_PREFIX, "api::journal-post.journal-post.");
+  assert.deepEqual(JOURNAL_POST_ACTIONS, ["find", "findOne", "create", "update", "delete"].map((a) => `api::journal-post.journal-post.${a}`));
+  for (const a of JOURNAL_POST_ACTIONS) {
+    assert.ok(PUBLIC_REVOKED.includes(a), a);
+    assert.equal(PUBLIC_PERMISSIONS.includes(a), false, a);
+  }
+  assert.equal(PUBLIC_PERMISSIONS.some((a) => a.startsWith(JOURNAL_POST_PREFIX)), false);
+});
+
+test("every role's journal-post grant is found on boot, custom and future roles and actions included", () => {
+  const { officeOnlyGrants } = require("./role-permissions");
+  const roles = [
+    { id: 1, name: "Public", permissions: [
+      { id: 11, action: "api::journal-post.journal-post.find" },
+      { id: 12, action: "api::article.article.find" },
+    ] },
+    { id: 2, name: "Authenticated", permissions: [
+      { id: 21, action: "api::journal-post.journal-post.findOne" },
+      { id: 22, action: "api::journal-post.journal-post.create" },
+    ] },
+    { id: 3, name: "AgencyStaff", permissions: [
+      { id: 31, action: "api::journal-post.journal-post.update" },
+      { id: 32, action: "api::journal-post.journal-post.delete" },
+    ] },
+    // An action added later is caught; a look-alike content type is not.
+    { id: 4, name: "Moderator", permissions: [
+      { id: 41, action: "api::journal-post.journal-post.publish" },
+      { id: 42, action: "api::journal-post-archive.journal-post-archive.find" },
+    ] },
+  ];
+  assert.deepEqual(officeOnlyGrants(roles).map((p) => p.id), [11, 21, 22, 31, 32, 41]);
+  assert.equal(officeOnlyGrants(roles).find((p) => p.id === 11).role, "Public");
+});
+
+test("the Authenticated role's revoke list on boot covers journal posts, and nothing grants them", () => {
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "index.js"), "utf8");
+  assert.ok(src.includes("...JOURNAL_POST_ACTIONS"), "src/index.js must revoke JOURNAL_POST_ACTIONS from Authenticated");
+  assert.equal(/['"]api::journal-post\.journal-post\.[A-Za-z]+['"]/.test(src), false, "src/index.js names a journal-post action");
+});

@@ -49,6 +49,14 @@ const CLIENT_CONSENT_ACTIONS = ['api::client-consent.client-consent.findOne'];
 // One client's saved properties and searches for the client page (plan section 2), likewise.
 const CLIENT_SAVED_ACTIONS = ['api::client-saved.client-saved.findOne'];
 
+// Journal posts (journal publishing plan, 7 Nov 2026; TEC-2138): drafts, posts ready for review,
+// scheduled and published posts. The website reads them and the back office writes, publishes and
+// schedules them with the server token, after checking the staff member's journal permission; no
+// role holds them, so a draft or a scheduled post never shows before its time.
+const JOURNAL_POST_ACTIONS = ['find', 'findOne', 'create', 'update', 'delete'].map(
+  (a) => `api::journal-post.journal-post.${a}`
+);
+
 // Public grants that earlier deploys created and that must no longer exist. The grant loop
 // only ever adds, so they are deleted on every boot; switching one off in the admin panel
 // did not stick before (review, 8 Oct 2026).
@@ -63,6 +71,7 @@ const PUBLIC_REVOKED = [
   ...CLIENT_ACTION_ACTIONS,
   ...CLIENT_CONSENT_ACTIONS,
   ...CLIENT_SAVED_ACTIONS,
+  ...JOURNAL_POST_ACTIONS,
 ];
 
 /** The permission rows a role holds whose action is on the revoke list. */
@@ -99,12 +108,14 @@ const SITE_FEEDBACK_PREFIX = 'api::site-feedback.site-feedback.';
 const CLIENT_ACTION_PREFIX = 'api::client-action.client-action.';
 const CLIENT_CONSENT_PREFIX = 'api::client-consent.client-consent.';
 const CLIENT_SAVED_PREFIX = 'api::client-saved.client-saved.';
+// Journal posts, every action today and any added later.
+const JOURNAL_POST_PREFIX = 'api::journal-post.journal-post.';
 
 /** As listingNoteGrants, for every office-only API: the notes, the transactions, the daily
-    visitor counts with their tokens and delivery keys, the website feedback, and the client
-    action history, the consent endpoint and the saved-things endpoint. */
+    visitor counts with their tokens and delivery keys, the website feedback, the client
+    action history, the consent endpoint and the saved-things endpoint, and the journal posts. */
 function officeOnlyGrants(roles) {
-  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_PREFIX, CLIENT_SAVED_PREFIX]);
+  return grantsOn(roles, [LISTING_NOTE_PREFIX, LISTING_TRANSACTION_PREFIX, PAGE_VIEW_DAY_PREFIX, PAGE_VIEW_SEEN_PREFIX, PAGE_VIEW_BATCH_PREFIX, SITE_FEEDBACK_PREFIX, CLIENT_ACTION_PREFIX, CLIENT_CONSENT_PREFIX, CLIENT_SAVED_PREFIX, JOURNAL_POST_PREFIX]);
 }
 
 function grantsOn(roles, prefixes) {
@@ -131,6 +142,8 @@ module.exports = {
   CLIENT_CONSENT_PREFIX,
   CLIENT_SAVED_ACTIONS,
   CLIENT_SAVED_PREFIX,
+  JOURNAL_POST_ACTIONS,
+  JOURNAL_POST_PREFIX,
   toRevoke,
   listingNoteGrants,
   officeOnlyGrants,
