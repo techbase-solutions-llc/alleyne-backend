@@ -77,6 +77,10 @@
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::lead.lead"
+    },
+    "isTest": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

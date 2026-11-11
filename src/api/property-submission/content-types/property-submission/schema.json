@@ -105,6 +105,10 @@
     },
     "activecampaignContactId": {
       "type": "string"
+    },
+    "isTest": {
+      "type": "boolean",
+      "default": false
     }
   }
 }
