@@ -206,8 +206,10 @@ test("a site feedback item holds the visitor's report and the office's handling 
   assert.deepEqual(a.handledBy, { type: "string", maxLength: 120 });
   assert.deepEqual(a.handledAt, { type: "datetime" });
   assert.deepEqual(a.summarisedAt, { type: "datetime" });
+  // A tester's report, kept out of the office's lists and counts (TEC-2147).
+  assert.deepEqual(a.isTest, { type: "boolean", default: false });
   assert.deepEqual(Object.keys(a).sort(), [
-    "device", "doing", "email", "handledAt", "handledBy", "kind", "listing", "listingRef", "pagePath",
+    "device", "doing", "email", "handledAt", "handledBy", "isTest", "kind", "listing", "listingRef", "pagePath",
     "reason", "screenWidth", "signedIn", "staffNote", "status", "summarisedAt", "wrong",
   ]);
 });
