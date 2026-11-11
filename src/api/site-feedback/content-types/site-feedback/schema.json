@@ -96,6 +96,10 @@
     },
     "summarisedAt": {
       "type": "datetime"
+    },
+    "isTest": {
+      "type": "boolean",
+      "default": false
     }
   }
 }
